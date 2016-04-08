@@ -1,0 +1,10 @@
+syntax: glob
+*.prefs
+.git
+*.bak
+_pydevproject
+_gitignore
+*.pyc
+_hgignore
+_project
+_gitattributes
