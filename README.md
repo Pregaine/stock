@@ -36,5 +36,5 @@
 ## 03_Month process
 
 - 營收
-    - 爬蟲公開資訊觀測站http://mops.twse.com.tw/nas/t21/sii/t21sc03_106_1_0.html
+    - 爬蟲公開資訊觀測站 http://mops.twse.com.tw/nas/t21/sii/t21sc03_106_1_0.html
     - 寫入MSSQL
