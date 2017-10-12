@@ -260,7 +260,7 @@ class dbHandle( ):
 
         return ( buy_lst[ 1 ] - sell_lst[ 1 ] ) / sum_lst[ 0 ]
 
-def unit( ):
+def unit( tar_file ):
 
     start_tmr = datetime.now( )
     server   = 'localhost'
@@ -268,7 +268,8 @@ def unit( ):
     username = 'sa'
     password = '292929'
     days = 1
-    tmp_file = '籌碼集中暫存_1.csv'
+
+    tmp = '籌碼集中暫存.csv'
 
     db = dbHandle( server, database, username, password )
 
@@ -276,7 +277,11 @@ def unit( ):
 
     cols = [ '日期', '股號', '01天集中度', '03天集中度', '05天集中度', '10天集中度', '20天集中度', '60天集中度' ]
 
-    df = pd.read_csv( tmp_file, sep = ',', encoding = 'utf8', false_values = 'NA',
+    if os.path.isfile( tmp ) is False:
+        with open( tmp, 'wb' ) as f:
+            writer = csv.writer( f )
+
+    df = pd.read_csv( tmp, sep = ',', encoding = 'utf8', false_values = 'NA',
                       names = cols, dtype={ '股號': str } )
 
     tmp_lst = df[ '股號' ].tolist( )
@@ -290,8 +295,9 @@ def unit( ):
     print( '上次捉取', len( df[ '股號' ].tolist( ) ), len( src_lst ), len( stock_lst ) )
 
     for stock in sorted( src_lst ):
+    # for stock in [ '2497' ]:
 
-        db.GetDates( stock, '121' )
+        db.GetDates( stock, '61' )
 
         day01_lst = db.Get_BetweenDayList( 1 )
         day03_lst = db.Get_BetweenDayList( 3 )
@@ -334,11 +340,11 @@ def unit( ):
                 print(stock, '無日期')
                 continue
 
-            with open( '籌碼集中暫存_1.csv', 'a', newline = '\n', encoding = 'utf8' ) as csv_file:
+            with open( tmp, 'a', newline = '\n', encoding = 'utf8' ) as csv_file:
                 file = csv.writer( csv_file, delimiter = ',' )
                 file.writerow( row )
 
-    result = pd.read_csv( tmp_file, sep = ',', encoding = 'utf8', false_values = 'NA',
+    result = pd.read_csv( tmp, sep = ',', encoding = 'utf8', false_values = 'NA',
                           names = cols, dtype={ '股號': str } )
 
     result.drop_duplicates( [ '日期', '股號' ], keep = 'last', inplace = True )
@@ -347,56 +353,15 @@ def unit( ):
 
     result = result.reset_index( drop=True )
 
-    df_writer = pd.ExcelWriter( '籌碼集中單元測試_20171006.xlsx' )
+    df_writer = pd.ExcelWriter( tar_file )
     result.to_excel( df_writer, sheet_name = '籌碼分析' )
 
-    print( datetime.now( ) - start_tmr )
-
-def main( ):
-
-    result = pd.DataFrame( )
-    start_tmr = datetime.now( )
-    server   = 'localhost'
-    database = 'StockDB'
-    username = 'sa'
-    password = 'admin'
-
-    db = dbHandle( server, database, username, password )
-
-    stock_lst = db.GetStockList( )
-
-    for stock in stock_lst:
-
-        df_01  = db.GetConcentrate( stock, '1' )
-        df_05  = db.GetConcentrate( stock, '5' )
-        df_15  = db.GetConcentrate( stock, '15' )
-        df_30  = db.GetConcentrate( stock, '30' )
-        df_60  = db.GetConcentrate( stock, '60' )
-        df_120 = db.GetConcentrate( stock, '120' )
-
-        df_tmp = pd.DataFrame( {
-
-                '01天集中度': df_01,
-                '05天集中度': df_05,
-                '15天集中度': df_15,
-                '30天集中度': df_30,
-                '60天集中度': df_60,
-                '120天集中度': df_120,
-                '股號': stock
-
-                }, index = [ 0 ] )
-
-        result = pd.concat( [ result, df_tmp ] )
-
-    cols = [ '股號', '01天集中度', '05天集中度', '15天集中度', '30天集中度', '60天集中度', '120天集中度' ]
-
-    result = result.reindex( columns = cols )
-
-    df_writer = pd.ExcelWriter( '籌碼集中.xlsx' )
-    result.to_excel( df_writer, sheet_name = '籌碼分析' )
+    os.remove( tmp )
 
     print( datetime.now( ) - start_tmr )
 
 if __name__ == '__main__':
-    # main( )
-    unit( )
+
+    tmr = datetime.now( ).strftime( '%y%m%d_%H%M' )
+
+    unit( '籌碼集中_' + tmr + '.xlsx' )
