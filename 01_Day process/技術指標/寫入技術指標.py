@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 import pandas as pd
 import re
+import numpy as np
 
 class DB_TechAnalysis:
 
@@ -461,7 +462,6 @@ class DB_TechAnalysis:
 
         ft = self.cur_db.execute( colum + table_name + ' where stock_id = ?',
                                   ( stock_num ) ).fetchall( )
-
         lst = [ ]
 
         # print( ft )
@@ -500,6 +500,8 @@ class DB_TechAnalysis:
     def ReadCSV( self, file ):
 
         self.df = pd.read_csv( file, sep = ',', encoding = 'utf8', false_values = 'NA', dtype = { '日期': str } )
+
+        self.df = self.df.replace( [ np.inf, -np.inf ], np.nan )
 
         # self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%y%m%d" )
 
@@ -544,7 +546,7 @@ def main( ):
     server = 'localhost'
     database = 'StockDB'
     username = 'sa'
-    password = '292929'
+    password = 'admin'
 
     db_M = DB_TechAnalysis( server, database, username, password )
     db_W = DB_TechAnalysis( server, database, username, password )

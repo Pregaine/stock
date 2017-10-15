@@ -112,7 +112,8 @@ class Technical_Indicator:
             else:
                 df_read[ '日期' ] = pd.to_datetime( df_read[ '日期' ], format = "%y%m%d%H" )
 
-            self.df = pd.concat( [ self.df, df_read ], ignore_index = True )
+            self.df = pd.concat( [ df_read, self.df ], ignore_index = True )
+
             self.df.drop_duplicates( [ '日期' ], keep = 'last', inplace = True )
             self.df.sort_values( by = '日期',  ascending=True, inplace = True )
             self.df.reset_index( drop = True, inplace = True )
@@ -323,7 +324,7 @@ class Technical_Indicator:
         #          '買賣超金額', '買賣超佔股本比', '股本', '收盤', '成交量' ]
         # self.df_d.reindex( columns = cols )
 
-        self.df.replace( [ np.inf, -np.inf ], np.nan )
+        self.df = self.df.replace( [ np.inf, -np.inf ], np.nan )
 
         if self.type is not '60':
             self.df.to_csv( self.path, sep = ',', encoding = 'utf-8', date_format='%y%m%d' )
@@ -335,7 +336,7 @@ def main( ):
     server   = 'localhost'
     database = 'StockDB'
     username = 'sa'
-    password = '292929'
+    password = 'admin'
 
     db = dbHandle( server, database, username, password )
 
@@ -348,7 +349,7 @@ def main( ):
 
         print( '股號', stock )
 
-        query = { 'W': 5, 'D': 5, 'M': 5, '60': 25 }
+        query = { 'W': 144, 'D': 720, 'M': 30, '60': 1200 }
         # query = { 'W': 72, 'D': 300, 'M': 20, '60': 1200 }
 
         ti_W = Technical_Indicator( stock, 'W', **query )
