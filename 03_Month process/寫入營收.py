@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 import pandas as pd
 
+
 class DB_Revenue:
     def __init__( self, server, database, username, password ):
 
@@ -109,7 +110,7 @@ class DB_Revenue:
     def GetDateID( self, year, month ):
 
         ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Dates WHERE YEAR(Date) = ? AND MONTH(Date) = ?',
-                                  ( year, month ) ).fetchone( )
+                                  (year, month) ).fetchone( )
 
         val = year + month + '15'
 
@@ -121,7 +122,7 @@ class DB_Revenue:
 
     def CompareDB( self, date_id ):
 
-        ft = self.cur_db.execute( 'select * from Revenue where date_id = ?', ( date_id ) ).fetchall( )
+        ft = self.cur_db.execute( 'select * from Revenue where date_id = ?', (date_id) ).fetchall( )
 
         data = [ ]
 
@@ -129,7 +130,7 @@ class DB_Revenue:
 
             lst = [ 'None' if v is None else v for v in val ]
 
-            lst[ 1 ] = self.GetStock( lst[ 1 ] )
+            lst[ 1 ] = int( self.GetStock( lst[ 1 ] ) )
             lst[ 2 ] = self.GetDate( lst[ 2 ] ).strftime( '%y%m%d' )
 
             data.append( lst )
@@ -137,27 +138,26 @@ class DB_Revenue:
         # print( data )
 
         column = [ 'id', '公司代號', '日期',
-                   '當月營收', '上月營收','去年當月營收',
-                   '上月比較增減(%)','去年同月增減(%)',
-                   '當月累計營收','去年累計營收','前期比較增減(%)' ]
+                   '當月營收', '上月營收', '去年當月營收',
+                   '上月比較增減(%)', '去年同月增減(%)',
+                   '當月累計營收', '去年累計營收', '前期比較增減(%)' ]
 
         self.src_df = pd.DataFrame( data, columns = column )
 
         del self.src_df[ 'id' ]
         del self.src_df[ '日期' ]
 
-        self.df = pd.concat( [ self.df, self.src_df ], ignore_index = True )
-        self.df.drop_duplicates( [ '公司代號' ], keep = False, inplace = True )
+        self.df = pd.concat( [ self.src_df, self.df ], ignore_index = True )
+        self.df = self.df.drop_duplicates( [ '公司代號' ], keep = False )
 
-        lst = [ '公司代號', '當月營收', '上月營收','去年當月營收',
-                '上月比較增減(%)','去年同月增減(%)',
-                '當月累計營收','去年累計營收','前期比較增減(%)' ]
+        lst = [ '公司代號', '當月營收', '上月營收', '去年當月營收',
+                '上月比較增減(%)', '去年同月增減(%)',
+                '當月累計營收', '去年累計營收', '前期比較增減(%)' ]
 
         self.df = self.df[ lst ]
 
-        # print( self.df )
-        # print( stock_num, self.src_df.iloc[ 0 ] )
-        # print( stock_num, self.df.iloc[ 0 ] )
+        # print( self.src_df.iloc[ 0 ] )
+        # print( self.df.iloc[ 0 ] )
 
     def GetStockDF( self, value ):
 
@@ -220,16 +220,15 @@ class DB_Revenue:
 
 
 def main( ):
-
     server = 'localhost'
     database = 'StockDB'
     username = 'sa'
-    password = '292929'
+    password = 'admin'
 
     db = DB_Revenue( server, database, username, password )
 
-    db.Reset_Table( )
-    db.CreatDB( )
+    # db.Reset_Table( )
+    # db.CreatDB( )
 
     start_tmr = datetime.now( )
 
@@ -245,6 +244,8 @@ def main( ):
         db.ReadCSV( file )
 
         date_id = db.GetDateID( year, month )
+
+        print( year, month, date_id )
 
         db.CompareDB( date_id )
 
