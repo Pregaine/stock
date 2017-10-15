@@ -454,32 +454,41 @@ class DB_TechAnalysis:
         # print( table_name, stock_num )
 
         if data != '分':
-            colum = 'select date_id from '
+            cmd = 'select date_id, volume from ' + table_name + ' where stock_id = ?'
         else:
-            colum = 'select date from '
+            cmd = 'select date, volume from ' + table_name + ' where stock_id = ?'
 
-        # print( colum )
-
-        ft = self.cur_db.execute( colum + table_name + ' where stock_id = ?',
-                                  ( stock_num ) ).fetchall( )
+        ft = self.cur_db.execute( cmd, stock_num ).fetchall( )
         lst = [ ]
-
-        # print( ft )
 
         for val in ft:
 
+            # print( val )
+
             if data != '分':
-                tmp = self.GetDate( val[ 0 ] ).strftime( '%y%m%d' )
+                date = self.GetDate( val[ 0 ] ).strftime( '%y%m%d' )
             else:
-                tmp = val[ 0 ].strftime( '%y%m%d%H' )
+                date = val[ 0 ].strftime( '%y%m%d%H' )
 
-            lst.append( tmp )
+            volume = val[ 1 ]
 
-        # print( lst )
+            lst.append( ( date, volume ) )
 
-        self.df = self.df[ ~self.df[ '日期' ].isin( lst ) ]
+        df = pd.DataFrame( lst, columns = [ '日期', '成交量_資料庫取出' ] )
 
-        print( data, '刪除重覆寫入', self.df )
+        # print( df.head( 5 ) )
+
+        left = pd.merge( self.df, df, on = [ '日期' ], how = 'left' )
+
+        left = left[ left[ '成交量_資料庫取出' ] != left[ '成交量' ]  ]
+
+        del left[ '成交量_資料庫取出' ]
+
+        self.df = left
+
+        # self.df = self.df[ ~self.df[ '日期' ].isin( lst ) ]
+
+        # print( data, '刪除重覆寫入', self.df )
 
 
     def GetStockDF( self, value ):
@@ -509,6 +518,8 @@ class DB_TechAnalysis:
 
     def WriteDB( self, data, stock_id ):
 
+        table_name = self.d[ data ]
+
         self.df = self.df.astype( object ).where( pd.notnull( self.df ), None )
 
         lst = self.df.values.tolist( )
@@ -519,26 +530,37 @@ class DB_TechAnalysis:
 
         for val in lst:
 
-            # print( val )
             varlist = val[ 1 : ]
+
+            # print( data, '寫入', varlist )
 
             # print( '寫入欄位', len( varlist ) + 1 )
 
-            var_string = ', '.join( '?' * ( len( varlist ) + 1 ) )
-
-            query_string = 'INSERT INTO ' + self.d[ data ] + ' VALUES ( {} );'.format( var_string )
-
             if data != '分':
+                cmd = 'select * from ' + table_name + ' where stock_id = ? and date_id = ?'
                 date_id = self.GetDateID( varlist[ 0 ] )
                 varlist[ 0 ] = date_id
             else:
+                cmd = 'select * from ' + table_name  + ' where stock_id = ? and date = ? '
                 dt = datetime.strptime( varlist[ 0 ], '%y%m%d%H' )
                 varlist[ 0 ] = dt.strftime( "%y-%m-%d %H:%M:%S" )
 
+            ft = self.cur_db.execute( cmd, ( stock_id, varlist[ 0 ] ) ).fetchone( )
+
+            if ft is not None:
+                if data != '分':
+                    cmd = 'DELETE FROM ' + table_name + ' where stock_id = ? and date_id = ?'
+                else:
+                    cmd = 'DELETE FROM ' + table_name + ' where stock_id = ? and date = ?'
+
+                print( '刪除重覆資料', stock_id, varlist[ 0 ] )
+                self.cur_db.execute( cmd, ( stock_id, varlist[ 0 ] ) )
+
+            var_string = ', '.join( '?' * ( len( varlist ) + 1 ) )
             varlist.insert( 0, stock_id )
+            query_string = 'INSERT INTO ' + self.d[ data ] + ' VALUES ( {} );'.format( var_string )
 
             print( '寫入', varlist, len( varlist ) )
-            # print( query_string )
             self.cur_db.execute( query_string, varlist )
 
 def main( ):
@@ -558,7 +580,7 @@ def main( ):
     # db_W.Reset_Table( '周' )
     # db_D.Reset_Table( '日' )
     # db_H.Reset_Table( '分' )
-    #
+
     # 建立資料表
     # db_M.CreatDB( '月' )
     # db_W.CreatDB( '周' )
