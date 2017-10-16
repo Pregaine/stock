@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 import csv
 import os
 from datetime import datetime, timedelta
+import requests
+import pandas as pd
 
 class Revenue:
 
@@ -17,7 +19,6 @@ class Revenue:
         self.url_lst = [ ]
 
         self.ym_lst = [ ]
-
 
     def GetUrl_Lst( self ):
 
@@ -59,18 +60,34 @@ class Revenue:
                     index += 1
                     continue
 
-            response = urllib.request.urlopen( url )
+            headers = {
+                'user-agent': "Chrome/61.0.3163.100 Safari/537.36",
+                'upgrade-insecure-requests': "1",
+                'accept': "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+                'accept-encoding': "gzip, deflate",
+                'accept-language': "zh-TW,zh-CN;q=0.8,zh;q=0.6,en-US;q=0.4,en;q=0.2",
+                'cookie': "_ga=GA1.3.1953932169.1504347589; _ga=GA1.3.1953932169.1504347589",
+                'cache-control': "no-cache",
+                'postman-token': "254ec95e-d1e3-55be-e8c5-a9a7f3bef43e"
+            }
 
-            html = response.read( )
-            sp = BeautifulSoup( html.decode( 'cp950', 'ignore' ).encode( 'utf-8' ), "html.parser" )
-            tblh = sp.find_all( 'table', attrs = { 'border': '0', 'width': '100%' } )
+            data = requests.request( "GET", url, headers = headers )
+            data.encoding = 'cp950'
 
-            with open( file, 'w', newline = '', encoding = 'utf-8' )as file:
-                w = csv.writer( file )
+            sp = BeautifulSoup( data.text, "html.parser" )
+            tblh = sp.findAll( 'table', attrs = { 'border': '0', 'width': '100%' } )
+
+            if data.status_code == 404:
+                print( '網頁回應狀態', data.status_code )
+                return
+
+            with open( file, 'w', newline = '', encoding = 'utf-8' )as w_file:
+                w = csv.writer( w_file )
                 w.writerow( [ u'產業別', u'公司代號', u'公司名稱', u'當月營收', u'上月營收', u'去年當月營收', \
                               u'上月比較增減(%)', u'去年同月增減(%)', u'當月累計營收', u'去年累計營收', u'前期比較增減(%)' ] )
 
                 for h in range( 0, len( tblh ) ):
+
                     th = tblh[ h ].find( 'th', attrs = { 'align': 'left', 'class': 'tt' } )
                     cls = th.get_text( ).split( '：' )  # 產業別
                     tbl = tblh[ h ].find( 'table', attrs = { 'bordercolor': "#FF6600" } )
@@ -94,9 +111,13 @@ class Revenue:
                             rvnlst = (cls[ 1 ], td0, td1, td2, td3, td4, td5, td6, td7, td8, td9)
                             w.writerow( rvnlst )
 
+            df = pd.read_csv( file, sep = ',', encoding = 'utf8', false_values = 'NA', dtype = { '日期': str } )
+
+            df.drop_duplicates( [ '公司名稱' ], keep = 'last', inplace = True )
+
+            df.to_csv( file, sep = ',', encoding = 'utf-8' )
+
             index += 1
-
-
 
 def main( ):
 
