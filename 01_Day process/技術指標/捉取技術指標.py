@@ -300,23 +300,28 @@ class Technical_Indicator:
         self.df[ '周漲幅' ] = tmp_w_lst
         self.df[ '月漲幅' ] = tmp_m_lst
 
-    def ConverYearLst( self, lst ):
+    def ConverYearLst( self ):
 
-        num = 0
-        cnt = 0
+        now_tmr = datetime.now( ).strftime( '%y%m' )
 
-        for val in range( len( self.df[ '日期' ].index ) - 1, -1, -1 ):
+        now_year = now_tmr[ 0:2 ]
 
-            self.df.loc[ val, '日期' ] = str( lst[ num ].year ) + self.df.loc[ val, '日期' ]
+        pre_year = str( int( now_year ) - 1 )
 
-            if cnt < 4:
-                cnt += 1
+        pre_month = int( now_tmr[ 2:4 ] )
 
-            elif cnt is 4:
-                num += 1
-                cnt = 0
+        for val in range( self.df.index[ -1 ], -1, -1 ):
 
-        self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%Y%m%d%H%M" )
+            now_month = int( self.df.loc[ val, '日期' ][ 0:2 ] )
+
+            if now_month > pre_month:
+                now_year = pre_year
+
+            pre_month = now_month
+
+            self.df.loc[ val, '日期' ] = now_year + self.df.loc[ val, '日期' ]
+
+        self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%y%m%d%H%M" )
 
     def SaveCSV( self ):
 
@@ -338,18 +343,20 @@ def main( ):
     username = 'sa'
     password = 'admin'
 
+    day_lst = [ ]
+
     db = dbHandle( server, database, username, password )
 
     stock_lst = db.GetStockList( )
 
     start_tmr = datetime.now( )
 
-    # for stock in [ '9958' ]:
+    # for stock in [ '1219' ]:
     for stock in stock_lst:
 
         print( '股號', stock )
 
-        query = { 'W': 144, 'D': 720, 'M': 30, '60': 1200 }
+        query = { 'W': 480, 'D': 1200, 'M': 120, '60': 1200 }
         # query = { 'W': 72, 'D': 300, 'M': 20, '60': 1200 }
 
         ti_W = Technical_Indicator( stock, 'W', **query )
@@ -357,87 +364,87 @@ def main( ):
         ti_60 = Technical_Indicator( stock, '60', **query )
         ti_D = Technical_Indicator( stock, 'D', **query )
 
-        try:
+        # try:
+        #
+        #     ti_W.GetDF( )
+        #     ti_W.CombineDF( )
+        #
+        #     ti_W.GetMA( [ 4, 12, 24, 48, 96, 144, 240, 480 ] )
+        #     ti_W.GetRSI( [ 2, 3, 4, 5, 10 ] )
+        #     ti_W.GetKD( period = 9, k = 3, d = 3 )
+        #     ti_W.GetKD( period = 3, k = 2, d = 3 )
+        #     ti_W.GetMFI( [ 4, 6, 14 ] )
+        #     ti_W.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
+        #     ti_W.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
+        #     ti_W.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
+        #
+        #     ti_W.GetTi( )
+        #     ti_W.SaveCSV( )
+        #
+        # except:
+        #     print( stock, '周線無資料' )
+        #
+        # try:
+        #
+        #     ti_M.GetDF( )
+        #     ti_M.CombineDF( )
+        #
+        #     ti_M.GetMA( [ 3, 6, 12, 24, 36, 60, 120 ] )
+        #     ti_M.GetRSI( [ 2, 5, 10 ] )
+        #     ti_M.GetKD( period = 9, k = 3, d = 3 )
+        #     ti_M.GetKD( period = 3, k = 2, d = 3 )
+        #     ti_M.GetMFI( [ 4, 6, 14 ] )
+        #     ti_M.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
+        #     ti_M.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
+        #     ti_M.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
+        #
+        #     ti_M.GetTi( )
+        #     ti_M.SaveCSV( )
+        #
+        # except:
+        #     print( stock, '月線無資料' )
+        #
+        # try:
+        #
+        #     ti_D.GetDF( )
+        #
+        #     ti_D.CombineDF( )
+        #     ti_D.PCT_Change( ti_W.df, ti_M.df )
+        #
+        #     ti_D.GetMA( [ 3, 5, 8, 10, 20, 60, 120, 240, 480, 600, 840, 1200 ] )
+        #     ti_D.GetRSI( [ 2, 4, 5, 10 ] )
+        #     ti_D.GetKD( period = 9, k = 3, d = 3 )
+        #     ti_D.GetKD( period = 3, k = 2, d = 3 )
+        #     ti_D.GetMFI( [ 4, 6, 14 ] )
+        #     ti_D.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
+        #     ti_D.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
+        #     ti_D.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
+        #
+        #     ti_D.GetTi( )
+        #     ti_D.SaveCSV( )
+        #
+        # except:
+        #     print( stock, "日線無資料" )
 
-            ti_W.GetDF( )
-            ti_W.CombineDF( )
 
-            ti_W.GetMA( [ 4, 12, 24, 48, 96, 144, 240, 480 ] )
-            ti_W.GetRSI( [ 2, 3, 4, 5, 10 ] )
-            ti_W.GetKD( period = 9, k = 3, d = 3 )
-            ti_W.GetKD( period = 3, k = 2, d = 3 )
-            ti_W.GetMFI( [ 4, 6, 14 ] )
-            ti_W.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
-            ti_W.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
-            ti_W.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
+        ti_60.GetDF( )
+        ti_60.ConverYearLst( )
+        ti_60.CombineDF( )
 
-            ti_W.GetTi( )
-            ti_W.SaveCSV( )
+        ti_60.GetMA( [ 25, 50, 100, 300, 600, 1200 ] )
+        ti_60.GetRSI( [ 2, 4, 5, 10 ] )
+        ti_60.GetKD( period = 9, k = 3, d = 3 )
+        ti_60.GetKD( period = 3, k = 2, d = 3 )
+        ti_60.GetMFI( [ 5, 6, 14 ] )
+        ti_60.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
+        ti_60.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
+        ti_60.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
 
-        except:
-            print( stock, '周線無資料' )
+        ti_60.GetTi( )
+        ti_60.SaveCSV( )
 
-        try:
 
-            ti_M.GetDF( )
-            ti_M.CombineDF( )
-
-            ti_M.GetMA( [ 3, 6, 12, 24, 36, 60, 120 ] )
-            ti_M.GetRSI( [ 2, 5, 10 ] )
-            ti_M.GetKD( period = 9, k = 3, d = 3 )
-            ti_M.GetKD( period = 3, k = 2, d = 3 )
-            ti_M.GetMFI( [ 4, 6, 14 ] )
-            ti_M.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
-            ti_M.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
-            ti_M.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
-
-            ti_M.GetTi( )
-            ti_M.SaveCSV( )
-
-        except:
-            print( stock, '月線無資料' )
-
-        try:
-
-            ti_D.GetDF( )
-            ti_D.CombineDF( )
-            ti_D.PCT_Change( ti_W.df, ti_M.df )
-
-            ti_D.GetMA( [ 3, 5, 8, 10, 20, 60, 120, 240, 480, 600, 840, 1200 ] )
-            ti_D.GetRSI( [ 2, 4, 5, 10 ] )
-            ti_D.GetKD( period = 9, k = 3, d = 3 )
-            ti_D.GetKD( period = 3, k = 2, d = 3 )
-            ti_D.GetMFI( [ 4, 6, 14 ] )
-            ti_D.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
-            ti_D.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
-            ti_D.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
-
-            ti_D.GetTi( )
-            ti_D.SaveCSV( )
-
-        except:
-            print( stock, "日線無資料" )
-
-        try:
-
-            ti_60.GetDF( )
-            ti_60.ConverYearLst( ti_D.df[ '日期' ].tolist( ) )
-            ti_60.CombineDF( )
-
-            ti_60.GetMA( [ 25, 50, 100, 300, 600, 1200 ] )
-            ti_60.GetRSI( [ 2, 4, 5, 10 ] )
-            ti_60.GetKD( period = 9, k = 3, d = 3 )
-            ti_60.GetKD( period = 3, k = 2, d = 3 )
-            ti_60.GetMFI( [ 5, 6, 14 ] )
-            ti_60.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
-            ti_60.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
-            ti_60.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
-
-            ti_60.GetTi( )
-            ti_60.SaveCSV( )
-
-        except:
-            print( stock, '60分線無資料' )
+        print( stock, '60分線無資料' )
 
     print(datetime.now() - start_tmr)
 
