@@ -2,26 +2,9 @@
 
 import pyodbc
 import re
-import os
 import csv
 from datetime import datetime
 import glob
-
-def resetTable( cur ):
-    # Do some setup
-    with cur.execute( '''
-    DROP TABLE IF EXISTS DailyTrades;
-    DROP TABLE IF EXISTS Brokerages;
-    DROP TABLE IF EXISTS Stocks;
-    DROP TABLE IF EXISTS Dates;
-    '''
-    ):
-        print( 'Successfuly Del all Table' )
-
-    # DROP TABLE IF EXISTS Brokerages;
-    # DROP TABLE IF EXISTS Stocks;
-    # DROP TABLE IF EXISTS Dates;
-
 
 def CreateDailyTrade( cur ):
 
@@ -141,19 +124,13 @@ def CreateBrokerages( cur ):
     ALTER TABLE dbo.Brokerages SET (LOCK_ESCALATION = TABLE )
     
     COMMIT'''):
-        print( 'Successfuly Create Brokerages' )
+        print( 'Successfully Create Brokerages' )
 
-class dbHandle( ):
-
-    con_db = None
-    cur_db = None
-    dbname = None
-    dirs = None
+class dbHandle:
 
     def __init__( self, server, database, username, password ):
 
         print( "Initial Database connection..." + database )
-        self.dbname = database
         self.con_db = pyodbc.connect( 'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + server +
                                       ';PORT=1443;DATABASE=' + database +
                                       ';UID=' + username +
@@ -163,107 +140,115 @@ class dbHandle( ):
 
         self.date = ''
 
-        self.date_id = None
-
-        self.stock_id = None
+        self.stock = None
 
         self.con_db.commit( )
 
-    def _insertGetID( self, cur, tablename, fieldname, value ):
+    def ResetTable( self, table ):
 
-        ft = cur.execute( 'SELECT id FROM ' + tablename + ' WHERE ' + fieldname + ' = (?)', (value,) ).fetchone( )
+        cmd = 'DROP TABLE IF EXISTS ' + table
 
-        if ft is None:
-            cur.execute( 'INSERT INTO ' + tablename + ' (' + fieldname + ') VALUES (?)', (value,) )
-            return cur.execute( 'SELECT id FROM ' + tablename + ' WHERE ' + fieldname + ' = (?)', (value,) ).fetchone( )[ 0 ]
-        else:
-            return ft[ 0 ]
+        # Do some setup
+        with self.cur_db.execute( cmd ):
+            print( 'Successfully Del' + table )
 
-    def insert_csv2DB( self, filename ):
+    def CreateTable( self ):
+
+        cmd = ''' CREATE TABLE dbo.DailyTrade
+	(
+	stock int NOT NULL,
+	date date NOT NULL,
+	brokerage nvarchar(10) COLLATE　Chinese_Taiwan_Stroke_CS_AS NOT NULL ,
+	price decimal(10, 2) NOT NULL,
+	buy_volume bigint NULL,
+	sell_volume bigint NULL
+	)  ON [PRIMARY]
+
+    CREATE NONCLUSTERED INDEX IX_Table_stock ON dbo.DailyTrade
+	(
+	stock
+	) WITH( STATISTICS_NORECOMPUTE = OFF, 
+	IGNORE_DUP_KEY = OFF, 
+	ALLOW_ROW_LOCKS = ON, 
+	ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+
+    CREATE NONCLUSTERED INDEX IX_Table_date ON dbo.DailyTrade
+	(
+	date
+	) WITH( STATISTICS_NORECOMPUTE = OFF, 
+	IGNORE_DUP_KEY = OFF, 
+	ALLOW_ROW_LOCKS = ON, 
+	ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+
+    CREATE NONCLUSTERED INDEX IX_Table_brokerage ON dbo.DailyTrade
+	(
+	brokerage
+	) WITH( STATISTICS_NORECOMPUTE = OFF, 
+	IGNORE_DUP_KEY = OFF, 
+	ALLOW_ROW_LOCKS = ON, 
+	ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+
+    ALTER TABLE dbo.DailyTrade SET (LOCK_ESCALATION = TABLE)
+
+    COMMIT'''
+
+        with self.cur_db.execute( cmd ):
+            print( 'Successfully Create DailyTrade' )
+
+
+    def InsertCSV2DB( self, filename ):
 
         f = open( filename, 'r', encoding = 'utf8', errors = 'ignore' )
 
         for row in csv.reader( f ):
             if row[ 0 ] == '':
-                return 0
+                return
 
             brokerage_symbol = row[ 1 ][ 0:4 ]
-            brokerage_name = row[ 1 ][ 4:len( row[ 1 ] ) ].replace( ' ', '' ).replace( '\u3000', '' )
+            # brokerage_name = row[ 1 ][ 4:len( row[ 1 ] ) ].replace( ' ', '' ).replace( '\u3000', '' )
             price = row[ 2 ]
 
             buy_volume = row[ 3 ]
             sell_volume = row[ 4 ]
 
-            # brokerage
-            ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Brokerages WHERE symbol = ? collate Chinese_Taiwan_Stroke_CS_AS',
-                                      ( brokerage_symbol, ) ).fetchone( )
+            cmd = 'INSERT INTO DailyTrade ( stock, date, brokerage, price, buy_volume, sell_volume ) \
+                   VALUES ( ?, ?, ?, ?, ?, ? )'
+            try:
+                row = ( self.stock, self.date, brokerage_symbol, price, buy_volume, sell_volume )
 
-            # print( brokerage_symbol, brokerage_name )
+                self.cur_db.execute( cmd, row )
+            except:
+                print( '寫入失敗', row )
 
-            if ft is None:
-                self.cur_db.execute( 'INSERT INTO Brokerages ( symbol, name ) VALUES ( ?, ? )'
-                                     ,brokerage_symbol, brokerage_name )
 
-                self.cur_db.execute( 'SELECT TOP 1 id FROM Brokerages WHERE symbol = ? collate Chinese_Taiwan_Stroke_CS_AS'
-                                     , brokerage_symbol )
+    def InsertDB( self ):
 
-                brokerage_id = self.cur_db.fetchone( )[ 0 ]
-            else:
-                brokerage_id = ft[ 0 ]
-
-            data = ( brokerage_id, self.stock_id, self.date_id, price, buy_volume, sell_volume )
-
-            # print( data )
-            # DailyTrades
-            self.cur_db.execute(
-                'INSERT INTO DailyTrades ( brokerage_id, stock_id, date_id, price, buy_volume, sell_volume ) \
-                 VALUES ( ?, ?, ?, ?, ?, ? )', data )
-
-    def insertDB( self ):
-
-        for d in glob.glob( './/**//*.csv' ):
+        for filename in glob.glob( './/**//*.csv' ):
 
             # if d.endswith( ".csv" ) != 1:
                 # continue
 
-            self.date = d[ -10:-4 ]
+            self.date = filename[ -10:-4 ]
 
-            filenames = d
+            out_str = re.sub( '[0-9]+\\\\', '', filename.split( '_' )[ 1 ] )
 
-            out_str = re.sub( '[0-9]+\\\\', '', filenames.split( '_' )[ 1 ] )
-
-            stock_symbol = re.match( '\d*', out_str ).group( 0 )
+            self.stock = re.match( '\d*', out_str ).group( 0 )
             stock_name = re.sub( '\d*', '', out_str )
             # ----------------------------------------
 
-            print( stock_symbol, stock_name, self.date )
+            print( self.stock, stock_name, self.date )
 
             # stock
-            ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Stocks WHERE symbol = ?', (stock_symbol,) ).fetchone( )
+            ft = self.cur_db.execute( 'SELECT stock, date FROM DailyTrade WHERE stock = ? \
+                                      and date = ?', ( self.stock, self.date ) ).fetchone( )
 
             if ft is None:
-                self.cur_db.execute( 'INSERT INTO Stocks (symbol, name) VALUES ( ?, ? )',
-                                     ( stock_symbol, stock_name ) )
 
-                self.cur_db.execute( 'SELECT TOP 1 id FROM Stocks WHERE symbol = ?',
-                                     (stock_symbol,) )
+                self.InsertCSV2DB( filename )
 
-                self.stock_id = self.cur_db.fetchone( )[ 0 ]
-            else:
-                self.stock_id = ft[ 0 ]
-
-            # date
-            self.date_id = self._insertGetID( self.cur_db, 'Dates', 'date', self.date )
-
-            ft = self.cur_db.execute( 'SELECT stock_id, date_id \
-                                       FROM DailyTrades WHERE stock_id = ? and date_id = ?',
-                                      ( self.stock_id, self.date_id ) ).fetchone( )
-
-            if ft is None:
-                self.insert_csv2DB( filenames )
                 self.con_db.commit( )
             else:
-                print( '資料已存在', filenames )
+                print( '資料已存在資料庫 ', filename )
 
 def main( ):
 
@@ -271,17 +256,16 @@ def main( ):
     server   = 'localhost'
     database = 'StockDB'
     username = 'sa'
-    password = "292929"
+    password = "admin"
 
     db = dbHandle( server, database, username, password )
 
-    # resetTable( db.cur_db ) # 這句會刪掉SQL內所有資料
-    # CreateDailyTrade( db.cur_db )
-    # CreateBrokerages( db.cur_db )
-    # CreateDates( db.cur_db )
-    # CreateStocks( db.cur_db )
+    # db.ResetTable( 'DailyTrade' )
 
-    db.insertDB( )
+    # db.CreateTable(  )
+
+    db.InsertDB( )
+
     print( datetime.now( ) - start )
 
 if __name__ == '__main__':
