@@ -3,40 +3,17 @@
 import shutil
 import requests
 import re
-import pandas as pd
 import csv
-import os, sys
+import os
 import time
-import stock_inquire.stock_inquire as siq
+import module.inquire.GetStockNum as GetStockNum
 
-
-def WriteCsv( filename, lst ):
-
-    with open( filename, 'w', newline='\n', encoding = 'utf8' ) as csv_out_file:
-
-        filewriter = csv.writer( csv_out_file, delimiter = ',' )
-
-        for in_val in lst:
-            filewriter.writerow( in_val )
-
-def ReadCsv( filename ):
-
-    with open( filename, 'r', newline = '\n', encoding = 'utf8' ) as csv_file:
-        lst = csv.reader( csv_file )
-
-    return lst
-#-----------------------------------------------------------------------
-#傳入清單,回傳內容無重覆清單
-#-----------------------------------------------------------------------
-def remove_duplicates( l ):
-    return list( set( l ) )
-#-----------------------------------------------------------------------
 
 def Det_Dict_OverCnt( in_dict, compare ):
 
-    for i in in_dict.values( ):
+    for val in in_dict.values( ):
 
-        if i < compare:
+        if val < compare:
             return False
 
     return True
@@ -47,18 +24,21 @@ def Resort_List( path, lst ):
 
     for name in dirs:
 
-            i = re.search( '(\d{4,6}[A-Z]{0,3})', name )
+            i = re.search( '(\d{4,6}[A-Z]?)', name ).group( 0 )
+
+            j = re.search( '(\d{4,6})', name ).group( 0 )
 
             if i is not None:
-                if i.group(0) in lst:
-                    lst.remove( i.group(0) )
+                if i in lst:
+                    lst.remove( i )
+
+            if j is not None:
+                if j in lst:
+                    lst.remove( j )
 
     return lst
     
 
- 
-# OutputPath =  sys.argv[ 1 ]
-Load_Sucess_List = [ ]
 OutputPath = ".\\"
 #------------------------------------------------------------------------
 #網頁頭參數
@@ -76,8 +56,6 @@ rs = requests.session()
 
 res = rs.get( 'http://bsr.twse.com.tw/bshtm/bsMenu.aspx', stream = True, verify = False, headers =headers )
 
-# print( res.cookies )
-# print(res.text)
 
 viewstate = re.search( 'VIEWSTATE"\s+value=.*=', res.text )
 viewstate = viewstate.group( )[18:]
@@ -95,26 +73,16 @@ eventvalidation = eventvalidation.group()[24:]
 #搜尋網頁回應內容關鍵字'CaptchaImage.*guid+\S*\w'
 #根據關鍵字獲得驗證碼圖片
 #------------------------------------------------------------------------
-str = re.search( 'CaptchaImage.*guid+\S*\w', res.text )
+str = re.search( 'CaptchaImage.*guid+\S*\w', res.text ).group( )
 
-res = rs.get( 'http://bsr.twse.com.tw/bshtm/' + str.group( ), stream = True, verify = False ) 
+res = rs.get( 'http://bsr.twse.com.tw/bshtm/' + str, stream = True, verify = False )
 
 f = open( 'check.png', 'wb' )
 shutil.copyfileobj( res.raw, f )
 f.close
 
-print( 'http://bsr.twse.com.tw/bshtm/' + str.group() )
+# print( 'http://bsr.twse.com.tw/bshtm/' + str )
 #------------------------------------------------------------------------
-
-#------------------------------------------------------------------------
-#讀取csv file,得到股號清單
-#------------------------------------------------------------------------
-
-a = siq.stock_inquire( )
-
-stock_code_list = a.get_stock_list( )
-#------------------------------------------------------------------------
-
 
 #------------------------------------------------------------------------
 #初始化參數
@@ -125,18 +93,20 @@ timeout_dict = dict( )
 resort  = 0
 #------------------------------------------------------------------------
 
+Stock = GetStockNum.Handle( )
+stock_list = Stock.getlist( )
 
 #------------------------------------------------------------------------
 #根據股號清單,詢問網頁
 #------------------------------------------------------------------------
-while len( stock_code_list ):
+while len( stock_list ):
     
     #詢問股號,網頁無回應或回應錯誤次數
     miss_cnt = 0
 
     date = None
 
-    num = stock_code_list.pop( 0 )
+    num = stock_list.pop( 0 )
 
     while date is None and miss_cnt < 2:
 
@@ -148,11 +118,11 @@ while len( stock_code_list ):
 
         res = rs.get( 'http://bsr.twse.com.tw/bshtm/bsMenu.aspx', stream = True, verify = False, headers = headers, timeout=None )
 
-        print( '股號', num, 'Response', res.status_code, len( stock_code_list ) )
+        print( '股號', num, 'Response', res.status_code, len( stock_list ) )
 
-		#----------------------------------------------------------------------------------
-		#根據網頁響應內容"res.text"
-		#取出參數viewstate, eventvalidation
+        #----------------------------------------------------------------------------------
+        #根據網頁響應內容"res.text"
+        #取出參數viewstate, eventvalidation
         #----------------------------------------------------------------------------------
         try:
             viewstate = re.search( 'VIEWSTATE"\s+value=.*=', res.text )
@@ -162,21 +132,20 @@ while len( stock_code_list ):
         except:
             continue
         
-		#----------------------------------------------------------------------------------
-		#根據網頁響應內容"res.text"
-		#根據參數viewstate, eventvalidation
-		#得到個股卷商交易資料"date"
+        #----------------------------------------------------------------------------------
+        #根據網頁響應內容"res.text"
+        #根據參數viewstate, eventvalidation
+        #得到個股卷商交易資料"date"
         #----------------------------------------------------------------------------------
         key = re.search('CaptchaImage.*guid+\S*\w', res.text )
 
-        res = rs.get( 'http://bsr.twse.com.tw/bshtm/' + key.group(), stream = True, verify = False )
-
+        res = rs.get( 'http://bsr.twse.com.tw/bshtm/' + key.group( ), stream = True, verify = False )
 
         #f = open('check.png', 'wb')
-		#shutil.copyfileobj( res.raw, f )
-		#f.close
+        #shutil.copyfileobj( res.raw, f )
+        #f.close
         #----------------------------------------------------------------------------------
-		
+
         payload = {
         '__EVENTTARGET':'',
         '__EVENTARGUMENT':'',
@@ -193,11 +162,11 @@ while len( stock_code_list ):
         res = rs.get( 'http://bsr.twse.com.tw/bshtm/bsContent.aspx?v=t',verify = False ,stream = True, )
         date = re.search( 'receive_date.*\s.*\d', res.text )
 
-        #print( '股號', stock_code_list[index], 'Response', res.status_code, '內容' )
+        #print( '股號', stock_list[index], 'Response', res.status_code, '內容' )
         
     #----------------------------------------------------------------------------------    
-	#查詢次數已達到20次,未成功切換下檔股號
-	#----------------------------------------------------------------------------------
+    #查詢次數已達到,未成功切換下檔股號
+    #----------------------------------------------------------------------------------
     if miss_cnt == 2:
 
         if num in timeout_dict:
@@ -205,38 +174,33 @@ while len( stock_code_list ):
         else:
             timeout_dict[ num ] = 1
 
-        stock_code_list.append( num )
+        stock_list.append( num )
 
-        print( '查詢逾時', stock_code_list[ -1 ], '移入屁股' )
+        print( '股號', stock_list[ -1 ], '查詢逾時移入佇列' )
 
-        print( timeout_dict.items( ) )
-
-        if Det_Dict_OverCnt( timeout_dict, 5 ):
-            print( '不爽查了, 存入Log' )
-            del stock_code_list[ : ]
+        if Det_Dict_OverCnt( timeout_dict, 2 ):
+            print( '全部股號查詢超過4次, 存入Log' )
+            del stock_list[ : ]
             with open( 'log.csv', 'w' ) as csv_file:
                 writer = csv.writer( csv_file )
                 for key, value in timeout_dict.items( ):
                     val = "{0}".format( value )
                     writer.writerow( [ key, val ] )
-
         continue
 
-    if num in timeout_dict.keys( ):
-        timeout_dict.pop( num )
-	#----------------------------------------------------------------------------------	
-	#前面手續為模擬詢問卷商資料過程
-	#成功,代表此Sesion可以得到正確響應內容
-	#----------------------------------------------------------------------------------
+    #----------------------------------------------------------------------------------
+    #前面手續為模擬詢問卷商資料過程
+    #成功,代表此Sesion可以得到正確響應內容
+    #----------------------------------------------------------------------------------
     date = date.group()[-10:].replace('/', '')
     name = re.search( '&nbsp;.*<', res.text )
-    name = name.group()[6:-1]
+    name = name.group()[ 6:-1 ]
     #----------------------------------------------------------------------------------
 
-	#----------------------------------------------------------------------------------
-	#詢問網址"http://bsr.twse.com.tw/bshtm/bsContent.aspx"
-	#得到正確卷商交易資料,存到清單"raw"
-	#----------------------------------------------------------------------------------
+    #----------------------------------------------------------------------------------
+    #詢問網址"http://bsr.twse.com.tw/bshtm/bsContent.aspx"
+    #得到正確卷商交易資料,存到清單"raw"
+    #----------------------------------------------------------------------------------
     tmp_csv = rs.get( 'http://bsr.twse.com.tw/bshtm/bsContent.aspx', verify = False ,stream = True )
 
     if tmp_csv.status_code > 300 or tmp_csv.status_code < 200:
@@ -249,12 +213,13 @@ while len( stock_code_list ):
 
     data = tmp_csv.text.splitlines( )
 
-    print( data )
-
     if data[ 0 ] != '券商買賣股票成交價量資訊':
-        stock_code_list.append( num )
-        print( '查詢資料錯誤', stock_code_list[ -1 ], '移入屁股' )
+        stock_list.append( num )
+        print( '股號', stock_list[ -1 ], '查無資料移入佇列' )
         continue
+
+    if num in timeout_dict.keys( ):
+        timeout_dict.pop( num )
 
     data[ -1 ] = data[ -1 ].replace( ',,', ',' )
     data[ -1 ] = data[ -1 ].replace( ' ', '' )
@@ -272,8 +237,6 @@ while len( stock_code_list ):
             except AttributeError:
                 continue
         else:
-            print( row )
-
             tmp = row.split( ',' )
 
             if len( tmp ) > 5:
@@ -282,33 +245,34 @@ while len( stock_code_list ):
             else:
                 rows.append( ','.join( tmp ) )
 
-	#-------------------------------------
-	#初始化資料夾名稱
-	#-------------------------------------
+    #-------------------------------------
+    #初始化資料夾名稱
+    #-------------------------------------
     Savefiledir = OutputPath + '全台卷商交易資料_' + date + '\\'
 
-	#-------------------------------------
-	#若無資料夾,建立資料夾
-	#-------------------------------------
+    #-------------------------------------
+    #若無資料夾,建立資料夾
+    #-------------------------------------
     if not os.path.isdir(Savefiledir):
         os.makedirs(Savefiledir)
-        
+
     #-------------------------------------
-	#列印即將寫入檔名
-	#-------------------------------------
-    path_name = Savefiledir + payload['TextBox_Stkno'] + name + '_' + date + '.csv'
-    print( path_name )
+    #列印即將寫入檔名
+    #-------------------------------------
+    path_name = Savefiledir + num + name + '_' + date + '.csv'
+    # print( path_name )
 
     # -----------------------------
     # 檢查路徑內檔名比對code_list
     # -----------------------------
     if resort is 0:
         resort = 1
-        stock_code_list = Resort_List( Savefiledir, stock_code_list )
+        stock_list = Resort_List( Savefiledir, stock_list )
+        print( '股票未查詢', stock_list )
 
-	#-------------------------------------
-	#根據清單"raw"檔案寫入csv
-	#-------------------------------------
+    #-------------------------------------
+    #根據清單"raw"檔案寫入csv
+    #-------------------------------------
     with open( path_name, 'w', newline='\n', encoding='utf-8' ) as file:
         w = csv.writer( file )
         # w.writerow( [ '序號', '券商', '價格', '買進股數', '賣出股數' ] )
