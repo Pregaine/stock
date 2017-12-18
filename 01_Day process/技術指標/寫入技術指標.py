@@ -1,11 +1,22 @@
 # -*- coding: utf-8 -*-
 
 import pyodbc
-import os
 from datetime import datetime
 import pandas as pd
 import re
 import numpy as np
+import glob
+
+
+def StrToDateFormat( data, val ):
+    if data != '分':
+        dt = datetime.strptime( val, '%y%m%d' )
+        val = dt.strftime( "%y-%m-%d" )
+    else:
+        dt = datetime.strptime( val, '%y%m%d%H' )
+        val = dt.strftime( "%y-%m-%d %H:%M:%S" )
+
+    return val
 
 class DB_TechAnalysis:
 
@@ -14,10 +25,10 @@ class DB_TechAnalysis:
         self.df = pd.DataFrame( )
         self.src_df = pd.DataFrame( )
 
-        self.d = { '分': 'TechAnalysis_H',
-                   '日': 'TechAnaly_D',
-                   '周': 'TechAnalysis_W',
-                   '月': 'TechAnalysis_M'
+        self.d = { '分': 'Tech_H',
+                   '日': 'Tech_D',
+                   '周': 'Tech_W',
+                   '月': 'Tech_M'
                 }
 
         self.datelst = [ ]
@@ -35,25 +46,21 @@ class DB_TechAnalysis:
 
     def ResetTable( self, data ):
 
-        d = {
-            '分' : 'DROP TABLE IF EXISTS TechAnaly_H',
-            '日' : 'DROP TABLE IF EXISTS TechAnaly_D',
-            '周' : 'DROP TABLE IF EXISTS TechAnaly_W',
-            '月' : 'DROP TABLE IF EXISTS TechAnaly_M'
-        }
+        d = dict( 分 = 'DROP TABLE IF EXISTS Tech_H', 日 = 'DROP TABLE IF EXISTS Tech_D',
+                  周 = 'DROP TABLE IF EXISTS Tech_W', 月 = 'DROP TABLE IF EXISTS Tech_M' )
 
         # Do some setup
         with self.cur_db.execute( d[ data ] ):
             print( 'Successfully Deleter ' + data )
 
-    def CreatTable( self, data ):
+    def CreateTable( self, data ):
 
         sql_m_cmd = '''
-            CREATE TABLE dbo.TechAnalysis_M
+            CREATE TABLE dbo.Tech_M
             (
-            id int NOT NULL IDENTITY (1, 1),
-            stock_id int NOT NULL,
-            date_id int NOT NULL,
+            stock int NOT NULL,
+            date date NOT NULL,
+            
             open_price decimal(10, 2) NULL,
             high_price decimal(10, 2) NULL,
             low_price decimal(10, 2) NULL,
@@ -113,32 +120,12 @@ class DB_TechAnalysis:
             
             )  ON [PRIMARY]
 
-        ALTER TABLE dbo.TechAnalysis_M ADD CONSTRAINT
-        PK_TechAnalysis_M PRIMARY KEY CLUSTERED 
-        (
-        id
-        ) WITH( STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, 
-        ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-        
-        ALTER TABLE dbo.TechAnalysis_M ADD CONSTRAINT
-        FK_TechAnalysis_M FOREIGN KEY
-        (
-        id
-        ) REFERENCES dbo.TechAnalysis_M
-        (
-        id
-        ) ON UPDATE  NO ACTION 
-         ON DELETE  NO ACTION 
-            
-        ALTER TABLE dbo.TechAnalysis_M SET (LOCK_ESCALATION = TABLE)
-
         COMMIT'''
 
         sql_h_cmd = '''
-        CREATE TABLE dbo.TechAnalysis_H
+        CREATE TABLE dbo.Tech_H
         (
-        id int NOT NULL IDENTITY (1, 1),
-        stock_id int NOT NULL,
+        stock int NOT NULL,
         date smalldatetime NOT NULL,
         open_price decimal(10, 2) NULL,
         high_price decimal(10, 2) NULL,
@@ -192,29 +179,10 @@ class DB_TechAnalysis:
         bias60 decimal(10, 2) NULL
         )  ON [PRIMARY]
 
-        ALTER TABLE dbo.TechAnalysis_H ADD CONSTRAINT
-        PK_Table_2 PRIMARY KEY CLUSTERED 
-        (
-        id
-        ) WITH( STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, 
-        ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-
-        ALTER TABLE dbo.TechAnalysis_H ADD CONSTRAINT
-        FK_Table_2_Table_1 FOREIGN KEY
-        (
-        id
-        ) REFERENCES dbo.TechAnalysis_H
-        (
-        id
-        ) ON UPDATE  NO ACTION 
-         ON DELETE  NO ACTION 
-
-        ALTER TABLE dbo.TechAnalysis_H SET (LOCK_ESCALATION = TABLE)
-
         COMMIT'''
 
         sql_d_cmd = '''
-        CREATE TABLE dbo.TechAnaly_D
+        CREATE TABLE dbo.Tech_D
 	    (
 	    stock int NOT NULL,
 	    date date NOT NULL,
@@ -222,7 +190,8 @@ class DB_TechAnalysis:
 	    high_price decimal(10, 2) NULL,
 	    low_price decimal(10, 2) NULL,
 	    close_price decimal(10, 2) NULL,
-	    volume decimal(10, 2) NULL,
+	    volume bigint NULL,
+	    
 	    d_pec decimal(10, 2) NULL,
 	    w_pec decimal(10, 2) NULL,
 	    m_pec decimal(10, 2) NULL,
@@ -275,32 +244,14 @@ class DB_TechAnalysis:
 	    bias60 decimal(10, 2) NULL
 	    )  ON [PRIMARY]
 
-        CREATE NONCLUSTERED INDEX IX_TechAnaly_stock ON dbo.TechAnaly_D
-	    (
-	    stock
-	    ) WITH( STATISTICS_NORECOMPUTE = OFF, 
-	    IGNORE_DUP_KEY = OFF, 
-	    ALLOW_ROW_LOCKS = ON, 
-	    ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-
-        CREATE NONCLUSTERED INDEX IX_TechAnaly_date ON dbo.TechAnaly_D
-	    (
-	    date
-	    ) WITH( STATISTICS_NORECOMPUTE = OFF, 
-	    IGNORE_DUP_KEY = OFF, 
-	    ALLOW_ROW_LOCKS = ON, 
-	    ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-
-        ALTER TABLE dbo.TechAnaly_D SET (LOCK_ESCALATION = TABLE)
-
         COMMIT'''
 
         sql_w_cmd = '''
-        CREATE TABLE dbo.TechAnalysis_W
+        CREATE TABLE dbo.Tech_W
         (
-        id int NOT NULL IDENTITY (1, 1),
-        stock_id int NOT NULL,
-        date_id int NOT NULL,
+        stock int NOT NULL,
+        date date NOT NULL,
+        
         open_price decimal(10, 2) NULL,
         high_price decimal(10, 2) NULL,
         low_price decimal(10, 2) NULL,
@@ -359,25 +310,6 @@ class DB_TechAnalysis:
         bias20 decimal(10, 2) NULL,
         bias60 decimal(10, 2) NULL
         )  ON [PRIMARY]
-
-        ALTER TABLE dbo.TechAnalysis_W ADD CONSTRAINT
-        PK_TechAnalysis_W PRIMARY KEY CLUSTERED 
-        (
-        id
-        ) WITH( STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, 
-        ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-
-        ALTER TABLE dbo.TechAnalysis_W ADD CONSTRAINT
-        FK_TechAnalysis_W FOREIGN KEY
-        (
-        id
-        ) REFERENCES dbo.TechAnalysis_W
-        (
-        id
-        ) ON UPDATE  NO ACTION 
-         ON DELETE  NO ACTION 
-
-        ALTER TABLE dbo.TechAnalysis_W SET (LOCK_ESCALATION = TABLE)
 
         COMMIT'''
 
@@ -505,9 +437,23 @@ class DB_TechAnalysis:
 
         # print( self.df )
 
-    def WriteDB( self, data ):
+    def FindDuplicate( self, data ):
 
-        table_name = self.d[ data ]
+        cmd = '''SELECT * from {} where stock = ? and date = ? '''.format( self.d[ data ] )
+
+        # 尋找重覆資料
+        ft = self.cur_db.execute( cmd, ( self.stock, self.date )  ).fetchone( )
+        print( '比對資料庫資料', self.stock, self.date )
+
+        if ft is not None:
+
+            cmd = 'DELETE FROM {} where stock = ? and date = ?'.format( self.d[ data ] )
+
+            with self.cur_db.execute( cmd, ( self.stock, self.date ) ):
+                print( '刪除重覆資料', self.stock, self.date )
+
+
+    def WriteDB( self, data, First_Create = False ):
 
         self.df = self.df.astype( object ).where( pd.notnull( self.df ), None )
 
@@ -521,33 +467,18 @@ class DB_TechAnalysis:
 
             val.pop( 0 )
 
-            if data != '分':
-                cmd = '''SELECT * from {} where stock = '{}' and date = '{}' '''.format( self.d[ data ], self.stock, val[0] )
-            else:
-                cmd = 'select * from ' + table_name  + ' where stock_id = ? and date = ? '
-                dt = datetime.strptime( val[ 0 ], '%y%m%d%H' )
-                val[ 0 ] = dt.strftime( "%y-%m-%d %H:%M:%S" )
-
-            # 尋找重覆資料
-            ft = self.cur_db.execute( cmd ).fetchone( )
-
-            if ft is not None:
-                if data != '分':
-                    cmd = 'DELETE FROM {} where stock = {} and date = {}'.format( self.d[ data ], self.stock, val[ 0 ] )
-                else:
-                    cmd = 'DELETE FROM ' + table_name + ' where stock_id = ? and date = ?'
-
-                with self.cur_db.execute( cmd ):
-                    print( '刪除重覆資料', self.stock, val[ 0 ] )
-
-            var_string = ', '.join( '?' * ( len( val ) + 1 ) )
-
+            val[ 0 ] = StrToDateFormat( data, val[ 0 ] )
+            self.date = val[ 0 ]
             val.insert( 0, self.stock )
+            var_string = ', '.join( '?' * ( len( val )  ) )
+
+            if First_Create is False:
+                self.FindDuplicate( data )
 
             query_string = 'INSERT INTO {} VALUES ( {} )'.format( self.d[ data ], var_string )
 
             with self.cur_db.execute( query_string, val ):
-                print( '寫入', self.stock, val[ 0 ] )
+                print( '寫入資料庫', data, self.stock, self.date )
 
 def main( ):
 
@@ -555,6 +486,7 @@ def main( ):
     database = 'StockDB'
     username = 'sa'
     password = 'admin'
+    First_Create = False
 
     db_M = DB_TechAnalysis( server, database, username, password )
     db_W = DB_TechAnalysis( server, database, username, password )
@@ -562,16 +494,17 @@ def main( ):
     db_H = DB_TechAnalysis( server, database, username, password )
 
     # 移除表格
-    # db_M.Reset_Table( '月' )
-    # db_W.Reset_Table( '周' )
+    # First_Create = True
+    # db_M.ResetTable( '月' )
+    # db_W.ResetTable( '周' )
     # db_D.ResetTable( '日' )
-    # db_H.Reset_Table( '分' )
+    # db_H.ResetTable( '分' )
 
     # 建立資料表
-    # db_M.CreatDB( '月' )
-    # db_W.CreatDB( '周' )
-    # db_D.CreatTable( '日' )
-    # db_H.CreatDB( '分' )
+    # db_M.CreateTable( '月' )
+    # db_W.CreateTable( '周' )
+    # db_D.CreateTable( '日' )
+    # db_H.CreateTable( '分' )
 
     stock_d = {
             '分': [ db_H, '_60分線技術指標.csv'],
@@ -582,19 +515,14 @@ def main( ):
     start_tmr = datetime.now( )
 
     # 讀取資料夾
-    for file in os.listdir( '.\\' ):
-
-        if file.endswith( ".csv" ) != 1:
-            continue
-
-        # print( file )
+    for file in glob.glob( '*.csv' ):
 
         # 讀取股號
         num = re.match( '\d*', file ).group( 0 )
         data = file[ -10:-9 ]
 
-        # if data in stock_d.keys( ):
-        if data == '日':
+        if data in stock_d.keys( ):
+        # if data == '日':
 
             Obj = stock_d[ data ][ 0 ]
             path = num + stock_d[ data ][ 1 ]
@@ -609,7 +537,7 @@ def main( ):
             Obj.CompareDB( data )
 
             # 寫入資料庫
-            Obj.WriteDB( data )
+            Obj.WriteDB( data, First_Create )
 
             Obj.cur_db.commit( )
         else:

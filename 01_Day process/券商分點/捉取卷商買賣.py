@@ -22,19 +22,11 @@ def Resort_List( path, lst ):
 
     dirs = os.listdir( path )
 
-    for name in dirs:
+    for val in dirs:
 
-            i = re.search( '(\d{4,6}[A-Z]?)', name ).group( 0 )
-
-            j = re.search( '(\d{4,6})', name ).group( 0 )
-
-            if i is not None:
-                if i in lst:
-                    lst.remove( i )
-
-            if j is not None:
-                if j in lst:
-                    lst.remove( j )
+        compare = val.split( '_' )[ 0 ]
+        if compare in lst:
+            lst.remove( compare )
 
     return lst
     
@@ -259,7 +251,7 @@ while len( stock_list ):
     #-------------------------------------
     #列印即將寫入檔名
     #-------------------------------------
-    path_name = Savefiledir + num + name + '_' + date + '.csv'
+    path_name = Savefiledir + num + '_' + name + '_' + date + '.csv'
     # print( path_name )
 
     # -----------------------------

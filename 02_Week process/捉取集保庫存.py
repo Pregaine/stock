@@ -1,179 +1,13 @@
-# noinspection PyInterpreter
-import pyodbc
+# coding=utf8
+
 import requests
 from datetime import datetime
 from bs4 import BeautifulSoup as BS
-import csv
-import os
-import time
+import module.db.stock_db as DB
+import module.inquire.GetStockNum as GetStockNum
 import pandas as pd
 
-class dbHandle( ):
-
-    def __init__( self, server, database, username, password ):
-
-        self.datelst = [ ]
-        print( "Initial Database connection..." + database )
-        self.dbname = database
-        self.con_db = pyodbc.connect( 'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + server +
-                                      ';PORT=1443;DATABASE=' + database +
-                                      ';UID=' + username +
-                                      ';PWD=' + password )
-
-        self.cur_db = self.con_db.cursor( )
-        self.con_db.commit( )
-
-    def GetStockList( self ):
-
-        cmd = '''SELECT [symbol] FROM [StockDB].[dbo].[Stocks]'''
-
-        ft = self.cur_db.execute( cmd ).fetchall( )
-
-        return [ val[ 0 ] for val in ft ]
-
-    def Reset_Table( self ):
-        # Do some setup
-        with self.cur_db.execute( '''
-        DROP TABLE IF EXISTS Tdcc;
-        ''' ):
-            print( 'Successfuly Del all Table' )
-
-    def Create_TDCC(self):
-
-        with self.cur_db.execute( '''
-            CREATE TABLE dbo.Tdcc
-        	(
-                id int NOT NULL IDENTITY (1, 1),
-                stock_id int NOT NULL,
-                date_id int NOT NULL,
-                
-                Share_Rating_People_1_999 BIGINT,
-                Share_Rating_Unit_1_999 BIGINT,
-                Share_Rating_Proportion_1_999 float,
-                
-                Share_Rating_People_1000_5000 BIGINT,
-                Share_Rating_Unit_1000_5000 BIGINT,
-                Share_Rating_Proportion_1000_5000 float,
-                
-                Share_Rating_People_5001_10000 BIGINT,
-                Share_Rating_Unit_5001_10000 BIGINT,
-                Share_Rating_Proportion_5001_10000 float,
-                
-                Share_Rating_People_10001_15000 BIGINT,
-                Share_Rating_Unit_10001_15000 BIGINT,
-                Share_Rating_Proportion_10001_15000 float,
-                
-                Share_Rating_People_15001_20000 BIGINT,
-                Share_Rating_Unit_15001_20000 BIGINT,
-                Share_Rating_Proportion_15001_20000 float,
-                
-                Share_Rating_People_20001_30000 BIGINT,
-                Share_Rating_Unit_20001_30000 BIGINT,
-                Share_Rating_Proportion_20001_30000 float,
-                
-                Share_Rating_People_30001_40000 BIGINT,
-                Share_Rating_Unit_30001_40000 BIGINT,
-                Share_Rating_Proportion_30001_40000 float,
-                
-                Share_Rating_People_40001_50000 BIGINT,
-                Share_Rating_Unit_40001_50000 BIGINT,
-                Share_Rating_Proportion_40001_50000 float,
-                
-                Share_Rating_People_50001_100000 BIGINT,
-                Share_Rating_Unit_50001_100000 BIGINT,
-                Share_Rating_Proportion_50001_100000 float,
-                
-                Share_Rating_People_100001_200000 BIGINT,
-                Share_Rating_Unit_100001_200000 BIGINT,
-                Share_Rating_Proportion_100001_200000 float,
-                
-                Share_Rating_People_200001_400000 BIGINT,
-                Share_Rating_Unit_200001_400000 BIGINT,
-                Share_Rating_Proportion_200001_400000 float,
-                
-                Share_Rating_People_400001_600000 BIGINT,
-                Share_Rating_Unit_400001_600000 BIGINT,
-                Share_Rating_Proportion_400001_600000 float,
-                
-                Share_Rating_People_600001_800000 BIGINT,
-                Share_Rating_Unit_600001_800000 BIGINT,
-                Share_Rating_Proportion_600001_800000 float,
-                
-                Share_Rating_People_800001_1000000 BIGINT,
-                Share_Rating_Unit_800001_1000000 BIGINT,
-                Share_Rating_Proportion_800001_1000000 float,
-                
-                Share_Rating_People_Up_1000001 BIGINT,
-                Share_Rating_Unit_Up_1000001 BIGINT,
-                Share_Rating_Proportion_Up_1000001 float        
-                             
-        	)  ON [PRIMARY]
-
-            ALTER TABLE dbo.Tdcc ADD CONSTRAINT
-        	PK_Tdcc PRIMARY KEY CLUSTERED 
-        	(
-        	    id
-        	) WITH( STATISTICS_NORECOMPUTE = OFF, 
-        	IGNORE_DUP_KEY = OFF, 
-        	ALLOW_ROW_LOCKS = ON, 
-        	ALLOW_PAGE_LOCKS = ON ) ON [PRIMARY]
-
-            ALTER TABLE dbo.Tdcc SET (LOCK_ESCALATION = TABLE)
-
-            COMMIT
-            '''
-                          ):
-            print( 'Successfuly Create Tdcc' )
-
-    def GetStockID( self, stock_symbol ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Stocks WHERE symbol = ?', (stock_symbol,) ).fetchone( )
-
-        return ft[ 0 ]
-
-    def GetDateID(self, val ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Dates WHERE date = ?', ( val, ) ).fetchone( )
-
-        if ft is None:
-            self.cur_db.execute( 'INSERT INTO Dates ( date ) VALUES ( ? )', ( val,) )
-            return self.cur_db.execute( 'SELECT TOP 1 id FROM Dates WHERE date = ?', ( val, ) ).fetchone( )[ 0 ]
-        else:
-            return ft[ 0 ]
-
-    def GetDateLst( self, value ):
-
-        datelst = [ ]
-
-        stock_id = self.GetStockID( value )
-
-        ft = self.cur_db.execute( 'SELECT date_id FROM Tdcc WHERE stock_id = (?)', ( stock_id, ) ).fetchall( )
-
-        if ft is not None:
-            for val in ft:
-                value = self.cur_db.execute( 'SELECT date FROM Dates WHERE id = ( ? )', ( val ) ).fetchone( )[ 0 ]
-                datelst.append( value.strftime('%Y%m%d') )
-
-        return datelst
-
-    def WriteDB( self, stock, date, df ):
-
-        val = df.values.tolist( )
-        varlist = val[ 0 ][ 2: ]
-        var_string = ', '.join( '?' * len( val[ 0 ] ) )
-
-        query_string = 'INSERT INTO Tdcc VALUES ( {} );'.format( var_string )
-
-        varlist.insert( 0, date )
-        varlist.insert( 0, stock )
-
-        # print( varlist )
-
-        self.cur_db.execute( query_string, ( varlist ) )
-        self.cur_db.commit( )
-
-
-class TdccHandle( ):
+class TDCC_Handle:
 
     def __init__(self):
 
@@ -212,9 +46,11 @@ class TdccHandle( ):
         res = requests.get( 'http://www.tdcc.com.tw/smWeb/QryStock.jsp?' + website )
         soup = BS( res.text, "html5lib" )
 
-        tb = soup.select( '.mt' )[ 1 ]
-        # name = soup.findAll( 'td', class_ = 'bw09' )[ 0 ]
-        # name = ( name.text[ -2: ] )
+        try:
+            tb = soup.select( '.mt' )[ 1 ]
+        except:
+            print( stock, date, soup.findAll( 'script' )[ 2 ].text )
+            return
 
         df[ 'stock' ] = [ stock ]
         df[ 'date'] = [ date ]
@@ -235,37 +71,42 @@ class TdccHandle( ):
         return df
 
 def main( ):
+
     server   = 'localhost'
     database = 'StockDB'
     username = 'sa'
-    password = '292929'
+    password = 'admin'
 
-    db = dbHandle( server, database, username, password )
-    tdcc = TdccHandle( )
+    DB_OBJ = DB.Handle( server, database, 'TDCC', username, password )
 
     # 刪除集保庫存資料表
-    # db.Reset_Table( )
+    # DB_OBJ.ResetTable( 'TDCC' )
 
     # 建立集保庫存資料表
-    # db.Create_TDCC( )
+    # DB_OBJ.CreateTable_TDCC( )
+
+    TDCC_OBJ = TDCC_Handle( )
 
     # 時間記錄
     start_tmr = datetime.now( )
 
     # 查詢股號
-    stock_lst = db.GetStockList( )[ 0: ]
+    Stock_OBJ = GetStockNum.Handle( )
+
+    stock_lst = Stock_OBJ.getlist( )
 
     # 查詢網路集保庫存日期
-    date_lst = tdcc.qrerry_date( )
-    print( date_lst )
+    date_lst = TDCC_OBJ.qrerry_date( )
 
     # 查詢集保庫存資料表股號擁有日期
     # print( stock_lst[ 0 ], type( stock_lst[ 0 ] ) )
+
     while len( stock_lst ) != 0:
 
         stock = stock_lst.pop( 0 )
+
         # stock = '1101'
-        stock_db_date_lst = db.GetDateLst( stock )
+        stock_db_date_lst = DB_OBJ.GetAllData( 'date', "stock = '{}'".format( stock ) )
 
         print( stock, '資料庫日期筆數', len( stock_db_date_lst ) )
 
@@ -276,19 +117,21 @@ def main( ):
 
             date = stock_db_date_lst.pop( 0 )
 
+            # try:
+            # 捉取資料根據日期
+            df = TDCC_OBJ.querry_stock( date, stock )
+
+            if df is None: continue
+
+            data = df.iloc[ 0 ].tolist( )
+
+            data = data[ 0 : 2 ] + [ float( i ) for i in data[ 2: ] ]
+
             try:
-                # 捉取資料根據日期
-                df = tdcc.querry_stock( date, stock )
-
-                # get stock id
-                stock_id = db.GetStockID( stock )
-                date_id = db.GetDateID( date )
-
                 # dataframe 寫入資料庫
-                db.WriteDB( stock_id, date_id, df )
-                print( '寫入日期', stock_id, date_id, date, stock )
+                DB_OBJ.WriteData( data )
 
-            except IndexError:
+            except:
                 print( stock, '查詢無', date, '資料'  )
 
     # 結束

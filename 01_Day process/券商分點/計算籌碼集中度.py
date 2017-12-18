@@ -42,7 +42,7 @@ class dbHandle:
         cmd = '''CREATE TABLE dbo.Concentrate
 
 	(
-	stock int NOT NULL,
+	stock nvarchar(10) NOT NULL,
 	date date NOT NULL,
 	one decimal(6, 2) NULL,
 	three decimal(6, 2) NULL,
@@ -51,18 +51,6 @@ class dbHandle:
 	twenty decimal(6, 2) NULL,
 	sixty decimal(6, 2) NULL
 	)  ON [PRIMARY]
-
-    CREATE NONCLUSTERED INDEX IX_Table_stock ON dbo.Concentrate
-	(
-	stock
-	) WITH( STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-
-    CREATE NONCLUSTERED INDEX IX_Table_date ON dbo.Concentrate
-	(
-	date
-	) WITH( STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-
-    ALTER TABLE dbo.Concentrate SET (LOCK_ESCALATION = TABLE)
 
     COMMIT'''
 
