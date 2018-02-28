@@ -2,10 +2,14 @@
 Bug‧De‧羅傑被老闆開除前說「想要我的bug嗎？想要的話全部給你，去找吧！我把bug都埋在程式碼裡面！」 後來的新進員工把這Bug稱為「大臭蟲」(One Bug)，為了爭相除去這個Bug， 
 許多員工日以繼夜的加班，開啟了「大臭蟲時代」。
 
-# stock
-
 ##
-計算籌碼集中度需要更新。
+計算籌碼集中度.py 
+    - 18/02/28 
+    Init DB Cmd 修正錯誤訊息亂碼，加入SQL Cmd 'SET LANGUAGE us_english;'
+    GetDates Function，修正SQL Cmd "SELECT TOP ( {0} ) date FROM DailyTrade WHERE stock = \'{1}\' ' \
+                                   'GROUP BY date ORDER BY date desc'.format( days, num )
+    於替代字串加入'符號
+    
 
 
 ## 01_Day process

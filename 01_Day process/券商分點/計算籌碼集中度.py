@@ -19,16 +19,21 @@ class dbHandle:
 
     def __init__( self, server, database, username, password ):
 
+        cmd = 'SET LANGUAGE us_english;'
         self.date_lst = [ ]
         print( "Initial Database connection..." + database )
+
         self.dbname = database
         self.con_db = pyodbc.connect( 'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + server +
                                       ';PORT=1443;DATABASE=' + database +
-                                      ';UID=' + username +
+                                      ';UID='  + username +
                                       ';PWD=' + password )
 
         self.cur_db = self.con_db.cursor( )
+
         self.con_db.commit( )
+
+        self.cur_db.execute( cmd )
 
     def ResetTable(self, table ):
 
@@ -40,19 +45,18 @@ class dbHandle:
     def CreateTable(self):
 
         cmd = '''CREATE TABLE dbo.Concentrate
-
-	(
-	stock nvarchar(10) NOT NULL,
-	date date NOT NULL,
-	one decimal(6, 2) NULL,
-	three decimal(6, 2) NULL,
-	five decimal(6, 2) NULL,
-	ten decimal(6, 2) NULL,
-	twenty decimal(6, 2) NULL,
-	sixty decimal(6, 2) NULL
-	)  ON [PRIMARY]
-
-    COMMIT'''
+                        (
+                        stock nvarchar(10) NOT NULL,
+                        date date NOT NULL,
+                        one decimal(6, 2) NULL,
+                        three decimal(6, 2) NULL,
+                        five decimal(6, 2) NULL,
+                        ten decimal(6, 2) NULL,
+                        twenty decimal(6, 2) NULL,
+                        sixty decimal(6, 2) NULL
+                        )  ON [PRIMARY]
+                        
+                        COMMIT'''
 
         self.cur_db.execute( cmd )
 
@@ -78,14 +82,19 @@ class dbHandle:
 
     def GetDates( self, num, days ):
 
-        cmd = 'SELECT TOP ( {0} ) date FROM DailyTrade WHERE stock = {1} ' \
+        cmd = 'SELECT TOP ( {0} ) date FROM DailyTrade WHERE stock = \'{1}\' ' \
               'GROUP BY date ORDER BY date desc'.format( days, num )
+
+        # print( type( days ) )
+        # print( type( num ) )
 
         ft = self.cur_db.execute( cmd ).fetchall( )
 
         date = [ elt[ 0 ] for elt in ft ]
 
         self.date_lst = [ val.strftime( "%Y/%m/%d" ) for val in sorted( date, reverse = True ) ]
+
+        print( '日期範圍 self.date_lst =>', self.date_lst )
 
     def GetVolume( self, stock_symbol, days ):
 
@@ -200,13 +209,13 @@ class dbHandle:
 
         # buy top 15
         cmd = '''
-        SELECT top( 15 )
-        sum( buy_volume * price ) - sum( sell_volume * price ) as buy_sell_price,
-        sum( buy_volume - sell_volume ) / 1000 as buy_sell_vol
-        FROM DailyTrade
-        WHERE stock = {0} AND ( date between {1} and {2} )
-        GROUP BY stock, brokerage
-        ORDER BY buy_sell_price DESC'''.format( symbol, start_day, end_day )
+                        SELECT top( 15 )
+                        sum( buy_volume * price ) - sum( sell_volume * price ) as buy_sell_price,
+                        sum( buy_volume - sell_volume ) / 1000 as buy_sell_vol
+                        FROM DailyTrade
+                        WHERE stock = {0} AND ( date between {1} and {2} )
+                        GROUP BY stock, brokerage
+                        ORDER BY buy_sell_price DESC'''.format( symbol, start_day, end_day )
 
         ft = self.cur_db.execute( cmd ).fetchall( )
 
@@ -239,11 +248,11 @@ class dbHandle:
 
     def GetConcentrateBetweenDay( self, symbol, end, start ):
 
-        buy_vol = self.GetTopBuyBetweenDay( symbol, start, end )
+        buy_vol  = self.GetTopBuyBetweenDay( symbol, start, end )
 
         sell_vol = self.GetTopSellBetweenDay( symbol, start, end )
 
-        sum_vol = self.GetVolumeBetweenDay( symbol, start, end )
+        sum_vol  = self.GetVolumeBetweenDay( symbol, start, end )
 
         concentrate = None
 
@@ -294,7 +303,7 @@ def unit( tar_file ):
     # db.ResetTable( 'Concentrate' )
     # db.CreateTable()
 
-    stock_lst = db.GetStockList( )[  0: ]
+    stock_lst = db.GetStockList( )[ 0: ]
 
     if os.path.isfile( tmp ) is False:
         with open( tmp, 'wb' ) as f:
@@ -313,7 +322,7 @@ def unit( tar_file ):
     else:
         src_lst = stock_lst
 
-    print( '籌碼集中進度剩餘 {} 筆'.format(len( src_lst ))  )
+    print( '籌碼集中進度剩餘 {} 筆'.format( len( src_lst ) )  )
 
     # for stock in sorted( src_lst ):
     for stock in [ '2330' ]:
@@ -342,11 +351,12 @@ def unit( tar_file ):
                 df_05 = db.GetConcentrateBetweenDay( stock, day05_lst[ val ][ 0 ], day05_lst[ val ][ 1 ] )
                 df_10 = db.GetConcentrateBetweenDay( stock, day10_lst[ val ][ 0 ], day10_lst[ val ][ 1 ] )
                 df_20 = db.GetConcentrateBetweenDay( stock, day20_lst[ val ][ 0 ], day20_lst[ val ][ 1 ] )
-                df_60 = db.GetConcentrateBetweenDay( stock, day60_lst[ val ][ 0 ], day60_lst[ val ][ 1 ]  )
-            except IndexError:
-                print( stock, '日期範圍不足')
+                df_60 = db.GetConcentrateBetweenDay( stock, day60_lst[ val ][ 0 ], day60_lst[ val ][ 1 ] )
+                row = (stock, day01_lst[ val ][ 0 ], df_01, df_03, df_05, df_10, df_20, df_60)
 
-            row = ( stock, day01_lst[ val ][ 0 ], df_01, df_03, df_05, df_10, df_20, df_60 )
+            except IndexError:
+                row = (stock, db.date_lst[ 0 ], df_01, df_03, df_05, df_10, df_20, df_60)
+                print( stock, '日期範圍不足')
 
             db.Write( row )
 
