@@ -45,10 +45,10 @@ Bug‧De‧羅傑被老闆開除前說「想要我的bug嗎？想要的話全部
 - 18/02/28 
     > Init DB Cmd 修正錯誤訊息亂碼，加入SQL Cmd 'SET LANGUAGE us_english;'  
         GetDates Function，修正SQL Cmd 於替代字串加入'符號 
- ``` 
-        cmd = 'SELECT TOP ( {0} ) date FROM DailyTrade WHERE stock = \'{1}\' ' \
-              'GROUP BY date ORDER BY date desc'.format( days, num )
-```
+   ```     
+    cmd = 'SELECT TOP ( {0} ) date FROM DailyTrade WHERE stock = \'{1}\' ' \
+    'GROUP BY date ORDER BY date desc'.format( days, num )
+     ```
   
  
  
