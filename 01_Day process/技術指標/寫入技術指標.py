@@ -482,6 +482,9 @@ class DB_TechAnalysis:
 
             query_string = 'INSERT INTO {} VALUES ( {} )'.format( self.d[ data ], var_string )
 
+            print( query_string )
+            print(val)
+
             with self.cur_db.execute( query_string, val ):
                 print( '寫入資料庫', data, self.stock, self.date )
 
@@ -490,26 +493,33 @@ def main( ):
     server = 'localhost'
     database = 'StockDB'
     username = 'sa'
-    password = 'admin'
     First_Create = False
 
-    db_M = DB_TechAnalysis( server, database, username, password )
-    db_W = DB_TechAnalysis( server, database, username, password )
-    db_D = DB_TechAnalysis( server, database, username, password )
-    db_H = DB_TechAnalysis( server, database, username, password )
+    try:
+        password = 'admin'
+        db_M = DB_TechAnalysis( server, database, username, password )
+        db_W = DB_TechAnalysis( server, database, username, password )
+        db_D = DB_TechAnalysis( server, database, username, password )
+        db_H = DB_TechAnalysis( server, database, username, password )
+    except:
+        password = '292929'
+        db_M = DB_TechAnalysis( server, database, username, password )
+        db_W = DB_TechAnalysis( server, database, username, password )
+        db_D = DB_TechAnalysis( server, database, username, password )
+        db_H = DB_TechAnalysis( server, database, username, password )
 
     # 移除表格
-    # First_Create = True
-    # db_M.ResetTable( '月' )
-    # db_W.ResetTable( '周' )
-    # db_D.ResetTable( '日' )
-    # db_H.ResetTable( '分' )
+    First_Create = True
+    db_M.ResetTable( '月' )
+    db_W.ResetTable( '周' )
+    db_D.ResetTable( '日' )
+    db_H.ResetTable( '分' )
 
     # 建立資料表
-    # db_M.CreateTable( '月' )
-    # db_W.CreateTable( '周' )
-    # db_D.CreateTable( '日' )
-    # db_H.CreateTable( '分' )
+    db_M.CreateTable( '月' )
+    db_W.CreateTable( '周' )
+    db_D.CreateTable( '日' )
+    db_H.CreateTable( '分' )
 
     stock_d = {
             '分': [ db_H, '_60分線技術指標.csv'],

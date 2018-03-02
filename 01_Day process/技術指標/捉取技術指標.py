@@ -342,7 +342,10 @@ def main( ):
     username = 'sa'
     password = 'admin'
 
-    db = dbHandle( server, database, username, password )
+    try:
+        db = dbHandle( server, database, username, password )
+    except:
+        db = dbHandle(server, database, username, '292929' )
 
     stock_lst = db.GetStockList( )
 
@@ -423,24 +426,24 @@ def main( ):
         except:
             print( stock, "捉取日線發生問題" )
 
-        try:
-            ti_60.GetDF( )
-            ti_60.ConverYearLst( )
-            ti_60.CombineDF( )
+        # try:
+        ti_60.GetDF( )
+        ti_60.ConverYearLst( )
+        ti_60.CombineDF( )
 
-            ti_60.GetMA( [ 25, 50, 100, 300, 600, 1200 ] )
-            ti_60.GetRSI( [ 2, 4, 5, 10 ] )
-            ti_60.GetKD( period = 9, k = 3, d = 3 )
-            ti_60.GetKD( period = 3, k = 2, d = 3 )
-            ti_60.GetMFI( [ 5, 6, 14 ] )
-            ti_60.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
-            ti_60.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
-            ti_60.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
+        ti_60.GetMA( [ 25, 50, 100, 300, 600, 1200 ] )
+        ti_60.GetRSI( [ 2, 4, 5, 10 ] )
+        ti_60.GetKD( period = 9, k = 3, d = 3 )
+        ti_60.GetKD( period = 3, k = 2, d = 3 )
+        ti_60.GetMFI( [ 5, 6, 14 ] )
+        ti_60.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
+        ti_60.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
+        ti_60.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
 
-            ti_60.GetTi( )
-            ti_60.SaveCSV( )
-        except:
-            print( stock, '捉取60分線發生問題' )
+        ti_60.GetTi( )
+        ti_60.SaveCSV( )
+        # except:
+        # print( stock, '捉取60分線發生問題' )
 
     print(datetime.now() - start_tmr)
 
