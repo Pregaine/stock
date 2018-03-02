@@ -22,6 +22,8 @@ class DB_TechAnalysis:
 
     def __init__( self, server, database, username, password ):
 
+        cmd = 'SET LANGUAGE us_english;'
+
         self.df = pd.DataFrame( )
         self.src_df = pd.DataFrame( )
 
@@ -41,6 +43,9 @@ class DB_TechAnalysis:
 
         self.cur_db = self.con_db.cursor( )
         self.con_db.commit( )
+
+        self.cur_db.execute(cmd)
+
         self.stock = ''
         self.date = ''
 
