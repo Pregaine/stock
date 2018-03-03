@@ -5,6 +5,8 @@ import talib
 import pyodbc
 import logging
 from datetime import datetime, timedelta
+import threading
+import math
 
 class dbHandle( ):
 
@@ -118,9 +120,10 @@ class Technical_Indicator:
             self.df.sort_values( by = '日期',  ascending=True, inplace = True )
             self.df.reset_index( drop = True, inplace = True )
 
-        except:
+        except Exception as e:
+            print( str( e ) )
             # logging.exception( e )
-            print( self.path, '無暫存檔' )
+            # print( self.path, '無暫存檔' )
 
     # Money Flow Index and Ratio
     def MFI( self, n ):
@@ -419,26 +422,12 @@ def _Get60Minute( obj ):
     obj.GetTi( )
     obj.SaveCSV( )
 
-def main( ):
-
-    server   = 'localhost'
-    database = 'StockDB'
-    username = 'sa'
-    password = 'admin'
-
-    try:
-        db = dbHandle( server, database, username, password )
-    except:
-        db = dbHandle(server, database, username, '292929' )
-
-    stock_lst = db.GetStockList( )
-    all_tmr = datetime.now( )
+def GetFile( *lst ):
 
     query = { 'W': 480, 'D': 1200, 'M': 120, '60': 1200 }
-    # query = { 'W': 72, 'D': 300, 'M': 20, '60': 1200 }
 
     # for stock in [ '1418' ]:
-    for stock in stock_lst:
+    for stock in lst:
 
         start_tmr = datetime.now( )
         ti_W = Technical_Indicator( stock, 'W', **query )
@@ -459,7 +448,7 @@ def main( ):
         # try:
         _GetDay( ti_D, ti_W, ti_M )
         # except:
-            # print( stock, "捉取日線發生問題" )
+        # print( stock, "捉取日線發生問題" )
 
         # try:
         _Get60Minute( ti_60 )
@@ -468,6 +457,36 @@ def main( ):
 
         consumption = datetime.now( ) - start_tmr
         print( '股號', stock, '花費時間', consumption )
+
+def main( ):
+
+    server   = 'localhost'
+    database = 'StockDB'
+    username = 'sa'
+    password = 'admin'
+
+    thread_count = 4
+    thread_list = [ ]
+
+    try:
+        db = dbHandle( server, database, username, password )
+    except Exception as e:
+        print( str(e) )
+        db = dbHandle(server, database, username, '292929' )
+
+    stock_lst = db.GetStockList( )
+    all_tmr = datetime.now( )
+
+    for i in range( thread_count ):
+        start = math.floor( i * len( stock_lst ) / thread_count ) + 1
+        end = math.floor( (i + 1) * len( stock_lst ) / thread_count ) + 1
+        thread_list.append( threading.Thread( target = GetFile, args = stock_lst[ start:end ]  ) )
+
+    for thread in thread_list:
+        thread.start( )
+
+    for thread in thread_list:
+        thread.join( )
 
     print( '總花費時間', all_tmr - datetime.now( ) )
     # ------------------------------------------------------
