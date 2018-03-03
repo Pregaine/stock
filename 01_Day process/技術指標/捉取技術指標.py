@@ -314,6 +314,8 @@ class Technical_Indicator:
 
             now_day  = int( self.df.loc[ val, '日期' ][ 0:2 ] )
 
+            # print( 'now_year', now_year, 'now_month', now_month, 'now_day', now_day )
+
             if now_day > pre_day:
                 if now_month > 1:
                     now_month =  now_month - 1
@@ -323,12 +325,15 @@ class Technical_Indicator:
 
             pre_day = now_day
 
+            # print( 'now', now_year, now_month, now_day )
+            # print( "self.df.loc[ val, '日期' ]", self.df.loc[ val, '日期' ] )
+
             self.df.loc[ val, '日期' ] = str( now_year ) + str( now_month ) + self.df.loc[ val, '日期' ][ 0:4 ]
             # print( now_year, '年',  now_month, '月', now_day, '日' )
             # print( self.df.loc[ val, '日期' ] )
             # print( self.df.loc[ val, '日期' ] )
 
-        self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%Y%m%d%H" )
+        # self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%Y%m%d%H" )
 
     def SaveCSV( self ):
 
@@ -429,38 +434,37 @@ def main( ):
     stock_lst = db.GetStockList( )
     all_tmr = datetime.now( )
 
-    # for stock in [ '2330' ]:
+    query = { 'W': 480, 'D': 1200, 'M': 120, '60': 1200 }
+    # query = { 'W': 72, 'D': 300, 'M': 20, '60': 1200 }
+
+    # for stock in [ '1418' ]:
     for stock in stock_lst:
 
-        query = { 'W': 480, 'D': 1200, 'M': 120, '60': 1200 }
-        # query = { 'W': 72, 'D': 300, 'M': 20, '60': 1200 }
-
+        start_tmr = datetime.now( )
         ti_W = Technical_Indicator( stock, 'W', **query )
         ti_M = Technical_Indicator( stock, 'M', **query )
         ti_60 = Technical_Indicator( stock, '60', **query )
         ti_D = Technical_Indicator( stock, 'D', **query )
 
-        start_tmr = datetime.now( )
+        # try:
+        _GetWeek( ti_W )
+        # except:
+        #     print( stock, '周線無資料' )
 
-        try:
-            _GetWeek( ti_W )
-        except:
-            print( stock, '周線無資料' )
+        # try:
+        _GetMonth( ti_M )
+        # except:
+        #     print( stock, '捉取月線發生問題' )
 
-        try:
-            _GetMonth( ti_M )
-        except:
-            print( stock, '捉取月線發生問題' )
+        # try:
+        _GetDay( ti_D, ti_W, ti_M )
+        # except:
+            # print( stock, "捉取日線發生問題" )
 
-        try:
-            _GetDay( ti_D, ti_W, ti_M )
-        except:
-            print( stock, "捉取日線發生問題" )
-
-        try:
-            _Get60Minute( ti_60 )
-        except:
-            print( stock, '捉取60分線發生問題' )
+        # try:
+        _Get60Minute( ti_60 )
+        # except:
+        # print( stock, '捉取60分線發生問題' )
 
         consumption = datetime.now( ) - start_tmr
         print( '股號', stock, '花費時間', consumption )
