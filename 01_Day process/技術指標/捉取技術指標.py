@@ -7,6 +7,7 @@ import logging
 from datetime import datetime, timedelta
 import threading
 import math
+import time
 
 class dbHandle( ):
 
@@ -121,9 +122,10 @@ class Technical_Indicator:
             self.df.reset_index( drop = True, inplace = True )
 
         except Exception as e:
-            print( str( e ) )
+            pass
+            # print( str( e ) )
             # logging.exception( e )
-            # print( self.path, '無暫存檔' )
+            # print( self.path, '首次存檔' )
 
     # Money Flow Index and Ratio
     def MFI( self, n ):
@@ -428,7 +430,7 @@ def GetFile( *lst ):
 
     # for stock in [ '1418' ]:
     for stock in lst:
-
+        time.sleep( 0.1 )
         start_tmr = datetime.now( )
         ti_W = Technical_Indicator( stock, 'W', **query )
         ti_M = Technical_Indicator( stock, 'M', **query )
@@ -459,6 +461,7 @@ def GetFile( *lst ):
         print( '股號', stock, '花費時間', consumption )
 
 def main( ):
+    """國票證券 技術分析爬蟲"""
 
     server   = 'localhost'
     database = 'StockDB'
