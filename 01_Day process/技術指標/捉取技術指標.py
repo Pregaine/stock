@@ -299,28 +299,36 @@ class Technical_Indicator:
         self.df[ '周漲幅' ] = tmp_w_lst
         self.df[ '月漲幅' ] = tmp_m_lst
 
+    # TODO 對方網站改變60分線取消月字串，導致錯誤 18/03/03
     def ConverYearLst( self ):
 
-        now_tmr = datetime.now( ).strftime( '%y%m' )
+        now = datetime.now( )
+        now_month = now.month
+        now_year  = now.year
 
-        now_year = now_tmr[ 0:2 ]
-
-        pre_year = str( int( now_year ) - 1 )
-
-        pre_month = int( now_tmr[ 2:4 ] )
+        # TODO 有沒有更好的方法
+        index = self.df.index[ -1 ]
+        pre_day = int( self.df.loc[ index, '日期' ][ 0:2 ] )
 
         for val in range( self.df.index[ -1 ], -1, -1 ):
 
-            now_month = int( self.df.loc[ val, '日期' ][ 0:2 ] )
+            now_day  = int( self.df.loc[ val, '日期' ][ 0:2 ] )
 
-            if now_month > pre_month:
-                now_year = pre_year
+            if now_day > pre_day:
+                if now_month > 1:
+                    now_month =  now_month - 1
+                else:
+                    now_month = 12
+                    now_year  = now_year - 1
 
-            pre_month = now_month
+            pre_day = now_day
 
-            self.df.loc[ val, '日期' ] = now_year + self.df.loc[ val, '日期' ]
+            self.df.loc[ val, '日期' ] = str( now_year ) + str( now_month ) + self.df.loc[ val, '日期' ][ 0:4 ]
+            # print( now_year, '年',  now_month, '月', now_day, '日' )
+            # print( self.df.loc[ val, '日期' ] )
+            # print( self.df.loc[ val, '日期' ] )
 
-        self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%y%m%d%H%M" )
+        self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%Y%m%d%H" )
 
     def SaveCSV( self ):
 
@@ -335,6 +343,77 @@ class Technical_Indicator:
         else:
             self.df.to_csv( self.path, sep = ',', encoding = 'utf-8', date_format='%y%m%d%H' )
 
+def _GetMonth( obj ):
+
+    obj.GetDF( )
+    obj.CombineDF( )
+
+    obj.GetMA( [ 3, 6, 12, 24, 36, 60, 120 ] )
+    obj.GetRSI( [ 2, 5, 10 ] )
+    obj.GetKD( period = 9, k = 3, d = 3 )
+    obj.GetKD( period = 3, k = 2, d = 3 )
+    obj.GetMFI( [ 4, 6, 14 ] )
+    obj.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
+    obj.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
+    obj.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
+
+    obj.GetTi( )
+    obj.SaveCSV( )
+
+def _GetWeek( obj ):
+
+    obj.GetDF( )
+    obj.CombineDF( )
+
+    obj.GetMA( [ 4, 12, 24, 48, 96, 144, 240, 480 ] )
+    obj.GetRSI( [ 2, 3, 4, 5, 10 ] )
+    obj.GetKD( period = 9, k = 3, d = 3 )
+    obj.GetKD( period = 3, k = 2, d = 3 )
+    obj.GetMFI( [ 4, 6, 14 ] )
+    obj.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
+    obj.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
+    obj.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
+
+    obj.GetTi( )
+    obj.SaveCSV( )
+
+def _GetDay( obj, week, month ):
+
+    obj.GetDF( )
+
+    obj.CombineDF( )
+    obj.PCT_Change( week.df, month.df )
+
+    obj.GetMA( [ 3, 5, 8, 10, 20, 60, 120, 240, 480, 600, 840, 1200 ] )
+    obj.GetRSI( [ 2, 4, 5, 10 ] )
+    obj.GetKD( period = 9, k = 3, d = 3 )
+    obj.GetKD( period = 3, k = 2, d = 3 )
+    obj.GetMFI( [ 4, 6, 14 ] )
+    obj.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
+    obj.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
+    obj.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
+
+    obj.GetTi( )
+    obj.SaveCSV( )
+
+def _Get60Minute( obj ):
+
+    obj.GetDF( )
+    obj.ConverYearLst( )
+    obj.CombineDF( )
+
+    obj.GetMA( [ 25, 50, 100, 300, 600, 1200 ] )
+    obj.GetRSI( [ 2, 4, 5, 10 ] )
+    obj.GetKD( period = 9, k = 3, d = 3 )
+    obj.GetKD( period = 3, k = 2, d = 3 )
+    obj.GetMFI( [ 5, 6, 14 ] )
+    obj.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
+    obj.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
+    obj.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
+
+    obj.GetTi( )
+    obj.SaveCSV( )
+
 def main( ):
 
     server   = 'localhost'
@@ -348,13 +427,10 @@ def main( ):
         db = dbHandle(server, database, username, '292929' )
 
     stock_lst = db.GetStockList( )
-
-    start_tmr = datetime.now( )
+    all_tmr = datetime.now( )
 
     # for stock in [ '2330' ]:
     for stock in stock_lst:
-
-        print( '股號', stock )
 
         query = { 'W': 480, 'D': 1200, 'M': 120, '60': 1200 }
         # query = { 'W': 72, 'D': 300, 'M': 20, '60': 1200 }
@@ -364,89 +440,32 @@ def main( ):
         ti_60 = Technical_Indicator( stock, '60', **query )
         ti_D = Technical_Indicator( stock, 'D', **query )
 
+        start_tmr = datetime.now( )
+
         try:
-
-            ti_W.GetDF( )
-            ti_W.CombineDF( )
-
-            ti_W.GetMA( [ 4, 12, 24, 48, 96, 144, 240, 480 ] )
-            ti_W.GetRSI( [ 2, 3, 4, 5, 10 ] )
-            ti_W.GetKD( period = 9, k = 3, d = 3 )
-            ti_W.GetKD( period = 3, k = 2, d = 3 )
-            ti_W.GetMFI( [ 4, 6, 14 ] )
-            ti_W.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
-            ti_W.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
-            ti_W.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
-
-            ti_W.GetTi( )
-            ti_W.SaveCSV( )
-
+            _GetWeek( ti_W )
         except:
             print( stock, '周線無資料' )
 
         try:
-
-            ti_M.GetDF( )
-            ti_M.CombineDF( )
-
-            ti_M.GetMA( [ 3, 6, 12, 24, 36, 60, 120 ] )
-            ti_M.GetRSI( [ 2, 5, 10 ] )
-            ti_M.GetKD( period = 9, k = 3, d = 3 )
-            ti_M.GetKD( period = 3, k = 2, d = 3 )
-            ti_M.GetMFI( [ 4, 6, 14 ] )
-            ti_M.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
-            ti_M.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
-            ti_M.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
-
-            ti_M.GetTi( )
-            ti_M.SaveCSV( )
-
+            _GetMonth( ti_M )
         except:
             print( stock, '捉取月線發生問題' )
 
         try:
-
-            ti_D.GetDF( )
-
-            ti_D.CombineDF( )
-            ti_D.PCT_Change( ti_W.df, ti_M.df )
-
-            ti_D.GetMA( [ 3, 5, 8, 10, 20, 60, 120, 240, 480, 600, 840, 1200 ] )
-            ti_D.GetRSI( [ 2, 4, 5, 10 ] )
-            ti_D.GetKD( period = 9, k = 3, d = 3 )
-            ti_D.GetKD( period = 3, k = 2, d = 3 )
-            ti_D.GetMFI( [ 4, 6, 14 ] )
-            ti_D.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
-            ti_D.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
-            ti_D.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
-
-            ti_D.GetTi( )
-            ti_D.SaveCSV( )
-
+            _GetDay( ti_D, ti_W, ti_M )
         except:
             print( stock, "捉取日線發生問題" )
 
-        # try:
-        ti_60.GetDF( )
-        ti_60.ConverYearLst( )
-        ti_60.CombineDF( )
+        try:
+            _Get60Minute( ti_60 )
+        except:
+            print( stock, '捉取60分線發生問題' )
 
-        ti_60.GetMA( [ 25, 50, 100, 300, 600, 1200 ] )
-        ti_60.GetRSI( [ 2, 4, 5, 10 ] )
-        ti_60.GetKD( period = 9, k = 3, d = 3 )
-        ti_60.GetKD( period = 3, k = 2, d = 3 )
-        ti_60.GetMFI( [ 5, 6, 14 ] )
-        ti_60.GetMACD( SHORTPERIOD = 6, LONGPERIOD = 12, SMOOTHPERIOD = 9 )
-        ti_60.GetMACD( SHORTPERIOD = 12, LONGPERIOD = 26, SMOOTHPERIOD = 9 )
-        ti_60.GetWR( [ 9, 18, 42, 14, 24, 56, 72 ] )
+        consumption = datetime.now( ) - start_tmr
+        print( '股號', stock, '花費時間', consumption )
 
-        ti_60.GetTi( )
-        ti_60.SaveCSV( )
-        # except:
-        # print( stock, '捉取60分線發生問題' )
-
-    print(datetime.now() - start_tmr)
-
+    print( '總花費時間', all_tmr - datetime.now( ) )
     # ------------------------------------------------------
 
 if __name__ == '__main__':

@@ -8,6 +8,7 @@ import numpy as np
 import glob
 
 
+
 def StrToDateFormat( data, val ):
     if data != '分':
         dt = datetime.strptime( val, '%y%m%d' )
@@ -22,7 +23,9 @@ class DB_TechAnalysis:
 
     def __init__( self, server, database, username, password ):
 
-        # cmd = 'SET LANGUAGE us_english;'
+        #  TODO 如何查當下SQL 語言及時間格式
+
+        cmd = """SET LANGUAGE us_english; set dateformat ymd;"""
 
         self.df = pd.DataFrame( )
         self.src_df = pd.DataFrame( )
@@ -44,7 +47,7 @@ class DB_TechAnalysis:
         self.cur_db = self.con_db.cursor( )
         self.con_db.commit( )
 
-        # self.cur_db.execute(cmd)
+        self.cur_db.execute(cmd)
 
         self.stock = ''
         self.date = ''
