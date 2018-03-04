@@ -542,8 +542,8 @@ def main( ):
 
 if __name__ == '__main__':
 
-    all_tmr = datetime.now( )
+    start_time = time.time( )
 
     main( )
 
-    print( '總花費時間', all_tmr - datetime.now( ) )
+    print( 'The script took {:06.2f} minute !'.format( ( time.time( ) - start_time ) / 60  ) )
