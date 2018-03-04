@@ -80,8 +80,6 @@ class Technical_Indicator:
 
         response = requests.request( "GET", url, headers = headers, params = querystring )
 
-        # print( response.text )
-
         data = response.text.split( ' ' )
 
         val = 0
@@ -100,6 +98,8 @@ class Technical_Indicator:
 
         if self.type is not '60':
             self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%Y/%m/%d" )
+
+        return False
 
     def CombineDF( self ):
 
@@ -310,7 +310,13 @@ class Technical_Indicator:
 
         # TODO 有沒有更好的方法
         index = self.df.index[ -1 ]
-        pre_day = int( self.df.loc[ index, '日期' ][ 0:2 ] )
+
+        try:
+            pre_day = int( self.df.loc[ index, '日期' ][ 0:2 ] )
+        except ValueError as e:
+            # print( str(e) )
+            print( "股號", self.number, self.type, '資料不足' )
+            return True
 
         for val in range( self.df.index[ -1 ], -1, -1 ):
 
@@ -335,6 +341,7 @@ class Technical_Indicator:
             # print( self.df.loc[ val, '日期' ] )
             # print( self.df.loc[ val, '日期' ] )
 
+        return False
         # self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%Y%m%d%H" )
 
     def SaveCSV( self ):
@@ -353,6 +360,7 @@ class Technical_Indicator:
 def _GetMonth( obj ):
 
     obj.GetDF( )
+
     obj.CombineDF( )
 
     obj.GetMA( [ 3, 6, 12, 24, 36, 60, 120 ] )
@@ -370,6 +378,7 @@ def _GetMonth( obj ):
 def _GetWeek( obj ):
 
     obj.GetDF( )
+
     obj.CombineDF( )
 
     obj.GetMA( [ 4, 12, 24, 48, 96, 144, 240, 480 ] )
@@ -406,7 +415,10 @@ def _GetDay( obj, week, month ):
 def _Get60Minute( obj ):
 
     obj.GetDF( )
-    obj.ConverYearLst( )
+
+    if obj.ConverYearLst( ):
+        return True
+
     obj.CombineDF( )
 
     obj.GetMA( [ 25, 50, 100, 300, 600, 1200 ] )
@@ -458,27 +470,20 @@ def GetFile( *lst ):
         time.sleep( 0.1 )
         start_tmr = datetime.now( )
 
-        #  print( '股號', stock, ' ', end="" )
-        if DetStockIsNotExist( stock ):
-            continue
-
         ti_W  = Technical_Indicator( stock, 'W', **query )
         ti_M  = Technical_Indicator( stock, 'M', **query )
         ti_60 = Technical_Indicator( stock, '60', **query )
         ti_D  = Technical_Indicator( stock, 'D', **query )
 
-        one_days_ago = datetime.now( ) - timedelta( days = 1 )
+        #  print( '股號', stock, ' ', end="" )
+        if DetStockIsNotExist( stock ):
+            continue
 
-        try:
-            filetime = datetime.fromtimestamp( os.path.getctime( ti_D.path ) )
-
-            if filetime < one_days_ago:
-                pass
-            else:
-                print( '股號', ti_D.number, ti_D.path, '檔案更新時間不超過1天' )
-                continue
-        except FileNotFoundError:
-            pass
+        # try:
+        if _Get60Minute( ti_60 ):
+            continue
+        # except:
+        # print( stock, '捉取60分線發生問題' )
 
         # try:
         _GetWeek( ti_W )
@@ -495,11 +500,6 @@ def GetFile( *lst ):
         # except:
         # print( stock, "捉取日線發生問題" )
 
-        # try:
-        _Get60Minute( ti_60 )
-        # except:
-        # print( stock, '捉取60分線發生問題' )
-
         consumption = datetime.now( ) - start_tmr
         print( '股號', stock, '花費時間', consumption )
 
@@ -511,9 +511,6 @@ def main( ):
     username = 'sa'
     password = 'admin'
 
-    thread_count = 2
-    thread_list = [ ]
-
     try:
         db = dbHandle( server, database, username, password )
     except Exception as e:
@@ -521,13 +518,31 @@ def main( ):
         db = dbHandle(server, database, username, '292929' )
 
     stock_lst = db.GetStockList( )
+    one_days_ago = datetime.now( ) - timedelta( days = 1 )
+
+    for file in stock_lst:
+        try:
+            path = file + '_60分線技術指標.csv'
+            filetime = datetime.fromtimestamp( os.path.getctime( path ) )
+            if filetime < one_days_ago:
+                pass
+            else:
+                print( path, '檔案更新時間不超過1天' )
+                stock_lst.remove( file )
+        except FileNotFoundError:
+            pass
+
+    print( '股票此次更新', len(stock_lst), '數量' )
 
     # stock_lst = stock_lst[ 500: ]
 
     """股票已下市"""
     # stock_lst = [ '3559', '0050', '0058', '0053' ]
-    # stock_lst = '0058'
+    # stock_lst = [ '0050', '3312' ]
     # GetFile( stock_lst )
+
+    thread_count = 2
+    thread_list = [ ]
 
     for i in range( thread_count ):
         start = math.floor( i * len( stock_lst ) / thread_count ) + 1
