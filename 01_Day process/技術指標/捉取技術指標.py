@@ -8,6 +8,9 @@ from datetime import datetime, timedelta
 import threading
 import math
 import time
+from bs4 import BeautifulSoup as BS
+import os
+import time
 
 class dbHandle( ):
 
@@ -55,17 +58,9 @@ class Technical_Indicator:
         self.type = item
         self.days = d[ item ]
 
-        # self.df_60 = pd.DataFrame( )
-        # self.df_d = pd.DataFrame( )
-        # self.df_w = pd.DataFrame( )
-        # self.df_m = pd.DataFrame( )
-
-        # self.day = 300
-        # self.week = 70
-        # self.month = 20
-
     def GetDF( self ):
 
+        #  範例 http://jsinfo.wls.com.tw/Z/ZC/ZCW/CZKC1.djbcd?a=2889&b=D&c=1440
         url = "http://jsinfo.wls.com.tw/z/BCD/czkc1.djbcd"
 
         querystring = { "a": self.number, "b": self.type, "c": self.days, "E": "1", "ver": "5" }
@@ -84,6 +79,8 @@ class Technical_Indicator:
         }
 
         response = requests.request( "GET", url, headers = headers, params = querystring )
+
+        # print( response.text )
 
         data = response.text.split( ' ' )
 
@@ -424,18 +421,64 @@ def _Get60Minute( obj ):
     obj.GetTi( )
     obj.SaveCSV( )
 
+def DetStockIsNotExist( number ):
+
+    url = "http://jsinfo.wls.com.tw/z/zc/zcw/zcw1_{}.djhtm".format( number )
+
+    headers = { 'upgrade-insecure-requests': "1",
+        'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.186 Safari/537.36",
+        'accept': "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        'accept-encoding': "gzip, deflate", 'accept-language': "zh-TW,zh-CN;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
+        'cookie': "_ga=GA1.3.1434115831.1520137318; _gid=GA1.3.2080379860.1520137318; _uetsid=_uetf7314cc5",
+        'cache-control': "no-cache", 'postman-token': "123a262f-8920-74b0-c4da-b2e950cc49c5" }
+
+    response = requests.request( "GET", url, headers = headers )
+
+    soup = BS( response.text, "html.parser" )
+
+    print( '股號', number, '處理中' )
+
+    try:
+        row = soup.find( 'center' ).text
+    except AttributeError as e:
+        # print( str( e ) )
+        return False
+
+    if row == '所選個股代碼錯誤':
+        print( row )
+        return True
+    else:
+        return  False
+
 def GetFile( *lst ):
 
     query = { 'W': 480, 'D': 1200, 'M': 120, '60': 1200 }
 
-    # for stock in [ '1418' ]:
     for stock in lst:
         time.sleep( 0.1 )
         start_tmr = datetime.now( )
-        ti_W = Technical_Indicator( stock, 'W', **query )
-        ti_M = Technical_Indicator( stock, 'M', **query )
+
+        #  print( '股號', stock, ' ', end="" )
+        if DetStockIsNotExist( stock ):
+            continue
+
+        ti_W  = Technical_Indicator( stock, 'W', **query )
+        ti_M  = Technical_Indicator( stock, 'M', **query )
         ti_60 = Technical_Indicator( stock, '60', **query )
-        ti_D = Technical_Indicator( stock, 'D', **query )
+        ti_D  = Technical_Indicator( stock, 'D', **query )
+
+        one_days_ago = datetime.now( ) - timedelta( days = 1 )
+
+        try:
+            filetime = datetime.fromtimestamp( os.path.getctime( ti_D.path ) )
+
+            if filetime < one_days_ago:
+                pass
+            else:
+                print( '股號', ti_D.number, ti_D.path, '檔案更新時間不超過1天' )
+                continue
+        except FileNotFoundError:
+            pass
 
         # try:
         _GetWeek( ti_W )
@@ -468,7 +511,7 @@ def main( ):
     username = 'sa'
     password = 'admin'
 
-    thread_count = 4
+    thread_count = 2
     thread_list = [ ]
 
     try:
@@ -478,7 +521,13 @@ def main( ):
         db = dbHandle(server, database, username, '292929' )
 
     stock_lst = db.GetStockList( )
-    all_tmr = datetime.now( )
+
+    # stock_lst = stock_lst[ 500: ]
+
+    """股票已下市"""
+    # stock_lst = [ '3559', '0050', '0058', '0053' ]
+    # stock_lst = '0058'
+    # GetFile( stock_lst )
 
     for i in range( thread_count ):
         start = math.floor( i * len( stock_lst ) / thread_count ) + 1
@@ -491,8 +540,10 @@ def main( ):
     for thread in thread_list:
         thread.join( )
 
-    print( '總花費時間', all_tmr - datetime.now( ) )
-    # ------------------------------------------------------
-
 if __name__ == '__main__':
+
+    all_tmr = datetime.now( )
+
     main( )
+
+    print( '總花費時間', all_tmr - datetime.now( ) )
