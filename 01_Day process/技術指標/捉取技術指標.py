@@ -467,7 +467,7 @@ def GetFile( *lst ):
     query = { 'W': 480, 'D': 1200, 'M': 120, '60': 1200 }
 
     for stock in lst:
-        time.sleep( 0.1 )
+
         start_tmr = datetime.now( )
 
         ti_W  = Technical_Indicator( stock, 'W', **query )
@@ -476,26 +476,31 @@ def GetFile( *lst ):
         ti_D  = Technical_Indicator( stock, 'D', **query )
 
         #  print( '股號', stock, ' ', end="" )
+        time.sleep( 0.1 )
         if DetStockIsNotExist( stock ):
             continue
 
         # try:
+        time.sleep( 0.1 )
         if _Get60Minute( ti_60 ):
             continue
         # except:
         # print( stock, '捉取60分線發生問題' )
 
         # try:
+        time.sleep( 0.1 )
         _GetWeek( ti_W )
         # except:
         #     print( stock, '周線無資料' )
 
         # try:
+        time.sleep( 0.1 )
         _GetMonth( ti_M )
         # except:
         #     print( stock, '捉取月線發生問題' )
 
         # try:
+        time.sleep( 0.1 )
         _GetDay( ti_D, ti_W, ti_M )
         # except:
         # print( stock, "捉取日線發生問題" )
