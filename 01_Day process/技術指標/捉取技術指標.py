@@ -520,6 +520,8 @@ def main( ):
     stock_lst = db.GetStockList( )
     one_days_ago = datetime.now( ) - timedelta( days = 1 )
 
+    print( '股票開始比對', len( stock_lst ), '數量' )
+
     for file in stock_lst:
         try:
             path = file + '_60分線技術指標.csv'
@@ -534,12 +536,9 @@ def main( ):
 
     print( '股票此次更新', len(stock_lst), '數量' )
 
-    # stock_lst = stock_lst[ 500: ]
-
     """股票已下市"""
     # stock_lst = [ '3559', '0050', '0058', '0053' ]
     # stock_lst = [ '0050', '3312' ]
-    # GetFile( stock_lst )
 
     thread_count = 2
     thread_list = [ ]
