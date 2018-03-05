@@ -448,7 +448,7 @@ def DetStockIsNotExist( number ):
 
     soup = BS( response.text, "html.parser" )
 
-    print( '股號', number, '處理中' )
+    print( '股號{:<5}處理中'.format(number) )
 
     try:
         row = soup.find( 'center' ).text
@@ -481,32 +481,61 @@ def GetFile( *lst ):
             continue
 
         # try:
-        time.sleep( 0.1 )
-        if _Get60Minute( ti_60 ):
-            continue
+        if CompareFileCreatetime( ti_60.path ):
+            time.sleep( 0.1 )
+            if _Get60Minute( ti_60 ):
+                continue
         # except:
         # print( stock, '捉取60分線發生問題' )
 
         # try:
-        time.sleep( 0.1 )
-        _GetWeek( ti_W )
+        if CompareFileCreatetime( ti_W.path ):
+            time.sleep( 0.1 )
+            _GetWeek( ti_W )
         # except:
         #     print( stock, '周線無資料' )
 
         # try:
-        time.sleep( 0.1 )
-        _GetMonth( ti_M )
+        if CompareFileCreatetime( ti_M.path ):
+            time.sleep( 0.1 )
+            _GetMonth( ti_M )
         # except:
         #     print( stock, '捉取月線發生問題' )
 
         # try:
-        time.sleep( 0.1 )
-        _GetDay( ti_D, ti_W, ti_M )
+        if CompareFileCreatetime( ti_D.path ) \
+            and CompareFileCreatetime( ti_M.path ) \
+            and CompareFileCreatetime( ti_W.path ):
+            time.sleep( 0.1 )
+            _GetDay( ti_D, ti_W, ti_M )
         # except:
         # print( stock, "捉取日線發生問題" )
 
         consumption = datetime.now( ) - start_tmr
-        print( '股號', stock, '花費時間', consumption )
+        print( '股號{:<5}花費時間{}'.format( stock, consumption )  )
+
+def CompareFileCreatetime( path, hour = 12 ):
+
+    one_days_ago = datetime.now( ) - timedelta( hours = hour )
+
+    try:
+        filetime = datetime.fromtimestamp( os.path.getctime( path ) )
+
+        # print( 'filetime', filetime )
+        # print( 'one_days_ago', one_days_ago )
+
+        if filetime < one_days_ago:
+            # print( path, '檔案更新' )
+            return True
+        else:
+            print( '{:<20}更新時間不超過{}hour'.format( path, hour ) )
+            return False
+
+    except FileNotFoundError:
+        pass
+
+    return True
+
 
 def main( ):
     """國票證券 技術分析爬蟲"""
@@ -523,23 +552,9 @@ def main( ):
         db = dbHandle(server, database, username, '292929' )
 
     stock_lst = db.GetStockList( )
-    one_days_ago = datetime.now( ) - timedelta( days = 1 )
+
 
     print( '股票開始比對', len( stock_lst ), '數量' )
-
-    for file in stock_lst:
-        try:
-            path = file + '_60分線技術指標.csv'
-            filetime = datetime.fromtimestamp( os.path.getctime( path ) )
-            if filetime < one_days_ago:
-                pass
-            else:
-                print( path, '檔案更新時間不超過1天' )
-                stock_lst.remove( file )
-        except FileNotFoundError:
-            pass
-
-    print( '股票此次更新', len(stock_lst), '數量' )
 
     """股票已下市"""
     # stock_lst = [ '3559', '0050', '0058', '0053' ]
@@ -549,8 +564,9 @@ def main( ):
     thread_list = [ ]
 
     for i in range( thread_count ):
-        start = math.floor( i * len( stock_lst ) / thread_count ) + 1
-        end = math.floor( (i + 1) * len( stock_lst ) / thread_count ) + 1
+        start = math.floor( i * len( stock_lst ) / thread_count )
+        end   = math.floor( ( i + 1 ) * len( stock_lst ) / thread_count )
+        print( 'stock_lst', start, end )
         thread_list.append( threading.Thread( target = GetFile, args = stock_lst[ start:end ]  ) )
 
     for thread in thread_list:
