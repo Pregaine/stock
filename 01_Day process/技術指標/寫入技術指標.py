@@ -10,11 +10,14 @@ import glob
 
 
 def StrToDateFormat( data, val ):
+
+    # print( 'data {}, val {}'.format( data, val ) )
+
     if data != '分':
         dt = datetime.strptime( val, '%y%m%d' )
         val = dt.strftime( "%y-%m-%d" )
     else:
-        dt = datetime.strptime( val, '%y%m%d%H' )
+        dt = datetime.strptime( val, '%Y%m%d%H' )
         val = dt.strftime( "%y-%m-%d %H:%M:%S" )
 
     return val
@@ -485,11 +488,11 @@ class DB_TechAnalysis:
 
             query_string = 'INSERT INTO {} VALUES ( {} )'.format( self.d[ data ], var_string )
 
-            print( query_string )
-            print(val)
+            # print( query_string )
+            # print(val)
 
             with self.cur_db.execute( query_string, val ):
-                print( '寫入資料庫', data, self.stock, self.date )
+                print( '寫入資料庫 {} {} {}'.format( data, self.stock, self.date ) )
 
 def main( ):
 
@@ -548,7 +551,7 @@ def main( ):
             # 讀取來源檔
             Obj.stock = num
 
-            print( '讀取', path )
+            print( '讀取{}'.format( path ) )
             Obj.ReadCSV( path )
 
             # 刪去重覆資料
@@ -559,7 +562,7 @@ def main( ):
 
             Obj.cur_db.commit( )
         else:
-            print( '讀取錯誤', data )
+            print( '讀取錯誤 {}'.format( data ) )
 
     print( datetime.now( ) - start_tmr )
 
