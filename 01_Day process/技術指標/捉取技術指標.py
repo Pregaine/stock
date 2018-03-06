@@ -336,13 +336,13 @@ class Technical_Indicator:
             # print( 'now', now_year, now_month, now_day )
             # print( "self.df.loc[ val, '日期' ]", self.df.loc[ val, '日期' ] )
 
-            self.df.loc[ val, '日期' ] = str( now_year ) + str( now_month ) + self.df.loc[ val, '日期' ][ 0:4 ]
-            # print( now_year, '年',  now_month, '月', now_day, '日' )
-            # print( self.df.loc[ val, '日期' ] )
-            # print( self.df.loc[ val, '日期' ] )
+            self.df.loc[ val, '日期' ] = str( now_year - 2000 ) + '{:0>2}'.format( now_month ) + self.df.loc[ val, '日期' ][ 0:4 ]
+            # print( '日期{}'.format( self.df.loc[ val, '日期' ] ) )
 
+        self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%y%m%d%H" )
         return False
-        # self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%Y%m%d%H" )
+
+
 
     def SaveCSV( self ):
 
@@ -475,6 +475,8 @@ def GetFile( *lst ):
         ti_60 = Technical_Indicator( stock, '60', **query )
         ti_D  = Technical_Indicator( stock, 'D', **query )
 
+        cnt = 2
+
         #  print( '股號', stock, ' ', end="" )
         time.sleep( 0.1 )
         if DetStockIsNotExist( stock ):
@@ -491,6 +493,7 @@ def GetFile( *lst ):
         # try:
         if CompareFileCreatetime( ti_W.path ):
             time.sleep( 0.1 )
+            cnt = cnt - 1
             _GetWeek( ti_W )
         # except:
         #     print( stock, '周線無資料' )
@@ -498,14 +501,13 @@ def GetFile( *lst ):
         # try:
         if CompareFileCreatetime( ti_M.path ):
             time.sleep( 0.1 )
+            cnt = cnt - 1
             _GetMonth( ti_M )
         # except:
         #     print( stock, '捉取月線發生問題' )
 
         # try:
-        if CompareFileCreatetime( ti_D.path ) \
-            and CompareFileCreatetime( ti_M.path ) \
-            and CompareFileCreatetime( ti_W.path ):
+        if CompareFileCreatetime( ti_D.path ) and cnt == 0:
             time.sleep( 0.1 )
             _GetDay( ti_D, ti_W, ti_M )
         # except:

@@ -17,7 +17,7 @@ def StrToDateFormat( data, val ):
         dt = datetime.strptime( val, '%y%m%d' )
         val = dt.strftime( "%y-%m-%d" )
     else:
-        dt = datetime.strptime( val, '%Y%m%d%H' )
+        dt = datetime.strptime( val, '%y%m%d%H' )
         val = dt.strftime( "%y-%m-%d %H:%M:%S" )
 
     return val
