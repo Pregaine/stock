@@ -3,10 +3,16 @@ import pandas as pd
 import pyodbc
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup as BS
+import time
+import threading
+import math
+import os
 
 class dbHandle( ):
 
     def __init__( self, server, database, username, password ):
+
+        cmd = """SET LANGUAGE us_english; set dateformat ymd;"""
 
         self.datelst = [ ]
         print( "Initial Database connection..." + database )
@@ -19,6 +25,8 @@ class dbHandle( ):
         self.cur_db = self.con_db.cursor( )
         self.con_db.commit( )
 
+        self.cur_db.execute( cmd )
+
     def GetStockList( self ):
         cmd = '''SELECT [symbol] FROM [StockDB].[dbo].[Stocks]'''
 
@@ -30,7 +38,6 @@ class Investors:
 
     def __init__( self, num, EndDate ):
 
-        self.df = pd.DataFrame( )
         self.num = num
         self.edate = EndDate
         self.bdate = 1
@@ -77,6 +84,7 @@ class Investors:
                 'postman-token': "a9515c6e-701e-8616-0511-7bf44cd81d82"
             }
 
+        time.sleep( 0.1 )
         response = requests.request( "GET", url, headers = headers, params = querystring )
 
         self.text = response.text
@@ -97,6 +105,7 @@ class Investors:
 
             if len( lst ) == 11:
 
+                #  跳過網頁第一欄
                 if index != 0:
 
                     tmp_str = lst[ 0 ].string[ 0:3 ]
@@ -164,16 +173,14 @@ class Investors:
 
         try:
             df_read = pd.read_csv( self.path, sep = ',', encoding = 'utf8', false_values = 'NA', dtype={ '日期': str } )
-
             df_read[ '日期' ] = pd.to_datetime( df_read[ '日期' ], format = "%y%m%d" )
 
             self.df = pd.concat( [ self.df, df_read ], ignore_index = True )
             self.df.drop_duplicates( [ '日期' ], keep = 'last', inplace = True )
             self.df.sort_values( by = '日期',  ascending=False, inplace = True )
             self.df.reset_index( drop = True, inplace = True )
-
-        except:
-            print( self.path, '無暫存檔' )
+        except FileNotFoundError as e:
+            print( '{:<20}第1次捉取'.format( self.path ) )
 
 
     def SaveCSV(self):
@@ -185,38 +192,69 @@ class Investors:
 
         self.df.to_csv( self.path, sep = ',', encoding = 'utf-8', date_format = '%y%m%d' )
 
-def main( ):
+def CompareFileCreatetime( path, hour = 12 ):
 
-    server   = 'localhost'
-    database = 'StockDB'
-    username = 'sa'
-    password = '292929'
+    one_days_ago = datetime.now( ) - timedelta( hours = hour )
 
-    db = dbHandle( server, database, username, password )
+    try:
+        filetime = datetime.fromtimestamp( os.path.getctime( path ) )
 
-    stock_lst = db.GetStockList( )
-    year = 1
+        # print( 'filetime', filetime )
+        # print( 'one_days_ago', one_days_ago )
+        if filetime < one_days_ago:
+            # print( path, '檔案更新' )
+            return True
+        else:
+            print( '{:<20}更新時間不超過{}hour'.format( path, hour ) )
+            return False
+
+    except FileNotFoundError:
+        pass
+
+    return True
+
+def GetFile( *lst ):
+
     now_str = datetime.now( ).strftime( '%Y-%#m-%d' )
-    # now_str = "2017-9-4"
 
-    start_tmr = datetime.now( )
-
-    # for stock in [ '9958' ]:
-    for stock in stock_lst:
-        try:
+    for stock in lst:
+        if CompareFileCreatetime( '{}_3大法人持股.csv'.format( stock ) ):
             investors = Investors( stock, now_str )
-            investors.GetYearAgo( year = year )
+            investors.GetYearAgo( year = 1 )
             investors.GetData( )
             investors.ClearData( )
             investors.CombineDF( )
             investors.SaveCSV( )
-        except:
-            print( stock, 'no data' )
+            print( '{} {} ~ {}'.format( stock, investors.bdate, investors.edate ) )
 
-        print( stock, '結束',investors.edate, '開始', investors.bdate )
 
-    print( datetime.now( ) - start_tmr )
+def main( ):
+
+    try:
+        db = dbHandle( 'localhost', 'StockDB', 'sa', 'admin' )
+    except Exception as e:
+        print( str(e) )
+        db = dbHandle( 'localhost', 'StockDB', 'sa', '292929' )
+
+    stock_lst = db.GetStockList( )
+
+    thread_count = 2
+    thread_list = [ ]
+
+    for i in range( thread_count ):
+        start = math.floor( i * len( stock_lst ) / thread_count )
+        end   = math.floor( ( i + 1 ) * len( stock_lst ) / thread_count )
+        print( 'stock_lst', start, end )
+        thread_list.append( threading.Thread( target = GetFile, args = stock_lst[ start:end ]  ) )
+
+    for thread in thread_list:
+        thread.start( )
+
+    for thread in thread_list:
+        thread.join( )
 
 if __name__ == '__main__':
 
-        main( )
+    start_tmr = time.time( )
+    main( )
+    print( 'The script took {:06.2f} minute !'.format( ( time.time( ) - start_tmr ) / 60 ) )
