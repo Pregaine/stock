@@ -533,7 +533,9 @@ def CompareFileCreatetime( path, hour = 12 ):
             print( '{:<20}更新時間不超過{}hour'.format( path, hour ) )
             return False
 
-    except FileNotFoundError:
+    except Exception as e:
+        print( '{}'.format( e ) )
+    # except FileNotFoundError:
         pass
 
     return True

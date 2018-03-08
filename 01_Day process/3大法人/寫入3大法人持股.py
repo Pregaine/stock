@@ -128,7 +128,8 @@ def main( ):
 
     try:
         db = DB_Investors( 'localhost', 'StockDB', 'sa', 'admin' )
-    except:
+    except Exception as e:
+        print( '{}'.format( e ) )
         db = DB_Investors( 'localhost', 'StockDB', 'sa', '292929' )
 
     db.Reset_Table( )
