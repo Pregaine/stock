@@ -5,10 +5,14 @@ import os
 import csv
 from datetime import datetime
 import pandas as pd
+import numpy as np
+import time
 
 class DB_Investors :
 
     def __init__( self, server, database, username, password ):
+
+        cmd = """SET LANGUAGE us_english; set dateformat ymd;"""
 
         self.df = pd.DataFrame( )
         self.src_df = pd.DataFrame( )
@@ -23,22 +27,22 @@ class DB_Investors :
 
         self.cur_db = self.con_db.cursor( )
         self.con_db.commit( )
+        self.cur_db.execute( cmd )
         self.stock = ''
 
     def Reset_Table( self ):
         # Do some setup
-        with self.cur_db.execute( '''DROP TABLE IF EXISTS Investors;''' ):
-            print( 'Successfuly Deleter all Table' )
+        with self.cur_db.execute( '''DROP TABLE IF EXISTS INVESTORS;''' ):
+            print( 'Successfuly Deleter INVESTORS' )
 
     def CreatDB( self ):
 
         with self.cur_db.execute( '''
 
-            CREATE TABLE dbo.Investors 
+            CREATE TABLE dbo.INVESTORS 
         	(
-                id int NOT NULL IDENTITY (1, 1),
-                stock_id int NOT NULL,
-                date_id int NOT NULL,
+                stock int NOT NULL,
+                date date NOT NULL,
                 
                 foreign_sell int,
                 investment_sell int,
@@ -55,179 +59,80 @@ class DB_Investors :
                 
         	)  ON [PRIMARY]
 
-            ALTER TABLE dbo.Investors ADD CONSTRAINT
-        	PK_Investors PRIMARY KEY CLUSTERED 
-        	(
-        	    id
-        	) WITH( STATISTICS_NORECOMPUTE = OFF, 
-        	IGNORE_DUP_KEY = OFF, 
-        	ALLOW_ROW_LOCKS = ON, 
-        	ALLOW_PAGE_LOCKS = ON ) ON [PRIMARY]
-
-            ALTER TABLE dbo.Investors SET ( LOCK_ESCALATION = TABLE )
-
             COMMIT''' ):
             print( 'Successfuly Create 3大法人' )
 
-    def GetStockList( self ):
+    def CompareDB( self ):
 
-        cmd = '''SELECT [symbol] FROM [StockDB].[dbo].[Stocks]'''
+        cmd = 'select date, foreign_sell from INVESTORS where stock = {}'.format( self.stock )
 
         ft = self.cur_db.execute( cmd ).fetchall( )
 
-        return [ val[ 0 ] for val in ft ]
-
-    def GetDateLst( self, value ):
-
-        datelst = [ ]
-
-        stock_id = self.GetStockID( value )
-
-        ft = self.cur_db.execute( 'SELECT date_id FROM MarginTrad WHERE stock_id = (?)', (stock_id,) ).fetchall( )
-
-        if ft is not None:
-            for val in ft:
-                value = self.cur_db.execute( 'SELECT date FROM Dates WHERE id = ( ? )', (val) ).fetchone( )[ 0 ]
-                datelst.append( value.strftime( '%Y%m%d' ) )
-
-        return datelst
-
-    def GetStock( self, stock_id ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 symbol FROM Stocks Where id = ?', (stock_id,) ).fetchone( )
-
-        return ft[ 0 ]
-
-    def GetDate( self, date_id ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 date FROM Dates WHERE id = ?', (date_id,) ).fetchone( )
-
-        return ft[ 0 ]
-
-    def GetStockID( self, stock_symbol ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Stocks WHERE symbol = ?', (stock_symbol,) ).fetchone( )
-
-        return ft[ 0 ]
-
-    def GetDateID( self, val ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Dates WHERE date = ?', (val,) ).fetchone( )
-
-        if ft is None:
-            self.cur_db.execute( 'INSERT INTO Dates ( date ) VALUES ( ? )', (val,) )
-            return self.cur_db.execute( 'SELECT TOP 1 id FROM Dates WHERE date = ?', (val,) ).fetchone( )[ 0 ]
-        else:
-            return ft[ 0 ]
-
-    def CompareDB( self, stock_num ):
-
-        # print( stock_num )
-
-        ft = self.cur_db.execute( 'select * from Investors where stock_id = ?', ( stock_num ) ).fetchall( )
-
-        data = [ ]
+        lst = [ ]
 
         for val in ft:
 
-            lst = [ 'None' if v is None else v for v in val ]
+            date = val[ 0 ].strftime( '%y%m%d' )
 
-            lst[ 1 ] = self.GetStock( lst[ 1 ] )
-            lst[ 2 ] = self.GetDate( lst[ 2 ] ).strftime( '%y%m%d' )
+            foreign_sell = val[ 1 ]
 
-            data.append( lst )
+            lst.append( ( date, foreign_sell ) )
 
-        column = [ 'id', '股號', '日期', '外資買賣超', '投信買賣超',
-                                        '自營商買賣超', '單日合計買賣超',
-                                        '外資估計持股', '投信估計持股',
-                                        '自營商估計持股', '單日合計估計持股',
-                                        '外資持股比重', '三大法人持股比重' ]
+        df_db = pd.DataFrame( lst, columns = [ '日期', 'foreign_sell_FromDB' ] )
 
-        self.src_df = pd.DataFrame( data, columns = column )
+        left = pd.merge( self.df, df_db, on = [ '日期' ], how = 'left' )
 
-        del self.src_df[ 'id' ]
-        del self.src_df[ '股號' ]
+        left = left[ left[ 'foreign_sell_FromDB' ] != left[ '外資買賣超' ] ]
 
-        self.df = pd.concat( [ self.df, self.src_df ], ignore_index = True )
-        self.df.drop_duplicates( [ '日期' ], keep = False, inplace = True )
+        del left[ 'foreign_sell_FromDB' ]
 
-        column = [ '日期', '外資買賣超', '投信買賣超',
-                   '自營商買賣超', '單日合計買賣超',
-                   '外資估計持股', '投信估計持股',
-                   '自營商估計持股', '單日合計估計持股',
-                   '外資持股比重', '三大法人持股比重' ]
-
-        self.df = self.df[ column ]
-
+        self.df = left
         # print( self.df )
         # print( stock_num, self.src_df.iloc[ 0 ] )
         # print( stock_num, self.df.iloc[ 0 ] )
-
-    def GetStockDF( self, value ):
-
-        datelst = [ ]
-
-        stock_id = self.GetStockID( value )
-
-        ft = self.cur_db.execute( 'SELECT date_id FROM Tdcc WHERE stock_id = (?)', (stock_id,) ).fetchall( )
-
-        if ft is not None:
-            for val in ft:
-                value = self.cur_db.execute( 'SELECT date FROM Dates WHERE id = ( ? )', (val) ).fetchone( )[ 0 ]
-                datelst.append( value.strftime( '%Y%m%d' ) )
-
-        return datelst
 
     def ReadCSV( self, file ):
 
         self.df = pd.read_csv( file, sep = ',', encoding = 'utf8', false_values = 'NA', dtype = { '日期': str } )
 
-        # self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%y%m%d" )
+        self.df = self.df.replace( [ np.inf, -np.inf ], np.nan )
 
-        # print( self.df )
+        #  self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%y%m%d" )
+        #  print( self.df )
 
-    def WriteDB( self, stock_num ):
+    def WriteDB( self ):
 
         self.df = self.df.astype( object ).where( pd.notnull( self.df ), None )
 
         lst = self.df.values.tolist( )
 
         if len( lst ) == 0:
-            print( self.stock, 'exist DB')
-
-
+            print( '資料庫比對CSV無新資料 {}'.format( self.stock ) )
+            return
 
         for val in lst:
 
-            print( val )
+            val[ 0 ] = self.stock
+            dt = datetime.strptime( val[ 1 ], '%y%m%d' )
+            val[ 1 ] = dt.strftime( "%y-%m-%d" )
+            var_string = ', '.join( '?' * ( len( val )  ) )
 
-            varlist = val
+            query_string = 'INSERT INTO INVESTORS VALUES ( {} );'.format( var_string )
 
-            var_string = ', '.join( '?' * ( len( varlist ) + 1 ) )
+            print( '取出{}'.format( val ) )
 
-            query_string = 'INSERT INTO Investors VALUES ( {} );'.format( var_string )
-
-            date_id = self.GetDateID( varlist[ 0 ] )
-
-            varlist[ 0 ] = date_id
-
-            varlist.insert( 0, stock_num )
-
-            self.cur_db.execute( query_string, ( varlist ) )
+            with self.cur_db.execute( query_string, val ):
+                print( '寫入資料庫 {} {}'.format( val[ 0 ], val[ 1 ] ) )
 
 def main( ):
 
-    server   = 'localhost'
-    database = 'StockDB'
-    username = 'sa'
-    password = '292929'
+    try:
+        db = DB_Investors( 'localhost', 'StockDB', 'sa', 'admin' )
+    except:
+        db = DB_Investors( 'localhost', 'StockDB', 'sa', '292929' )
 
-    db = DB_Investors( server, database, username, password )
-
-    # db.Reset_Table( )
-    # db.CreatDB( )
-
-    start_tmr = datetime.now( )
+    db.Reset_Table( )
+    db.CreatDB( )
 
     # 讀取資料夾
     for file in os.listdir( '.\\' ):
@@ -239,17 +144,14 @@ def main( ):
 
         db.ReadCSV( file )
 
-        stock_id = db.GetStockID( db.stock )
+        db.CompareDB( )
 
-        db.CompareDB( stock_id )
-
-        db.WriteDB( stock_id )
+        db.WriteDB( )
 
         db.cur_db.commit( )
 
-    print( datetime.now( ) - start_tmr )
-
-
 if __name__ == '__main__':
 
+    start_tmr = time.time( )
     main( )
+    print( 'The script took {:06.1f} minute !'.format( (time.time( ) - start_tmr) / 60 ) )
