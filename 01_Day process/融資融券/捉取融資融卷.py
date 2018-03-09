@@ -3,6 +3,10 @@ import pandas as pd
 import pyodbc
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup as BS
+import time
+import threading
+import math
+import os
 
 class dbHandle( ):
 
@@ -20,6 +24,7 @@ class dbHandle( ):
         self.con_db.commit( )
 
     def GetStockList( self ):
+
         cmd = '''SELECT [symbol] FROM [StockDB].[dbo].[Stocks]'''
 
         ft = self.cur_db.execute( cmd ).fetchall( )
@@ -110,72 +115,86 @@ class Investors:
 
                     try:
                         self.d[ '融資買進' ].append( int( lst[ 1 ].string.replace( ",", "" ) ) )
-                    except ValueError:
+                    except Exception as e:
+                        print( '{} {}'.format( self.num, e ) )
                         self.d[ '融資買進' ].append( None )
 
                     try:
                         self.d[ '融資賣出' ].append( int( lst[ 2 ].string.replace( ",", "" ) ) )
-                    except ValueError:
+                    except Exception as e:
+                        print( '{} {}'.format( self.num, e ) )
                         self.d[ '融資賣出' ].append( None )
 
                     try:
                         self.d[ '融資現償' ].append( int( lst[ 3 ].string.replace( ",", "" ) ) )
-                    except ValueError:
+                    except Exception as e:
+                        print( '{} {}'.format( self.num, e ) )
                         self.d[ '融資現償' ].append( None )
 
                     try:
                         self.d[ '融資餘額' ].append( int( lst[ 4 ].string.replace( ",", "" ) ) )
-                    except ValueError:
+                    except Exception as e:
+                        print( '{} {}'.format( self.num, e ) )
                         self.d[ '融資餘額' ].append( None )
 
                     try:
                         self.d[ '融資增減' ].append( int( lst[ 5 ].string.replace( ",", "" ) ) )
-                    except ValueError:
+                    except Exception as e:
+                        print( '{} {}'.format( self.num, e ) )
                         self.d[ '融資增減' ].append( None )
 
                     try:
                         self.d[ '融資限額' ].append( int( lst[ 6 ].string.replace( ",", "" ) ) )
-                    except ValueError:
+                    except Exception as e:
+                        print( '{} {}'.format( self.num, e ) )
                         self.d[ '融資限額' ].append( None )
 
                     try:
                         self.d[ '融資使用率' ].append( float( lst[ 7 ].string.replace( "%", "" ) ) )
-                    except ValueError:
+                    except Exception as e:
+                        print( '{} {}'.format( self.num, e ) )
                         self.d[ '融資使用率' ].append( None )
 
                     try:
                         self.d[ '融券賣出' ].append( int( lst[ 8 ].string.replace( ",", "" ) ) )
-                    except ValueError:
+                    except Exception as e:
+                        print( '{} {}'.format( self.num, e ) )
                         self.d[ '融券賣出' ].append( None )
 
                     try:
                         self.d[ '融券買進' ].append( int( lst[ 9 ].string.replace( ",", "" ) ) )
-                    except ValueError:
+                    except Exception as e:
+                        print( '{} {}'.format( self.num, e ) )
                         self.d[ '融券買進' ].append( None )
 
                     try:
                         self.d[ '融券券償' ].append( int( lst[ 10 ].string.replace( ",", "" ) ) )
-                    except ValueError:
+                    except Exception as e:
+                        print( '{} {}'.format( self.num, e ) )
                         self.d[ '融券券償' ].append( None )
 
                     try:
                         self.d[ '融券餘額' ].append( int( lst[ 11 ].string.replace( ",", "" ) ) )
-                    except ValueError:
+                    except Exception as e:
+                        print( '{} {}'.format( self.num, e ) )
                         self.d[ '融券餘額' ].append( None )
 
                     try:
                         self.d[ '融券增減' ].append( int( lst[ 12 ].string.replace( ",", "" ) ) )
-                    except ValueError:
+                    except Exception as e:
+                        print( '{} {}'.format( self.num, e ) )
                         self.d[ '融券增減' ].append( None )
 
                     try:
                         self.d[ '融券券資比' ].append( float( lst[ 13 ].string.replace( "%", "" ) ) )
-                    except ValueError:
+                    except Exception as e:
+                        print( '{} {}'.format( self.num, e ) )
                         self.d[ '融券券資比' ].append( None )
 
                     try:
                         self.d[ '資券相抵' ].append( int( lst[ 14 ].string.replace( ",", "" ) ) )
-                    except ValueError:
+                    except Exception as e:
+                        print( '{} {}'.format( self.num, e ) )
                         self.d[ '資券相抵' ].append( None )
 
                 index += 1
@@ -196,8 +215,8 @@ class Investors:
             self.df.sort_values( by = '日期',  ascending=False, inplace = True )
             self.df.reset_index( drop = True, inplace = True )
 
-        except:
-            print( self.path, '無暫存檔' )
+        except Exception as e:
+            print( '{} 無暫存檔 {}'.format( self.path, e ) )
 
 
     def SaveCSV(self):
@@ -210,39 +229,75 @@ class Investors:
 
         self.df.to_csv( self.path, sep = ',', encoding = 'utf-8', date_format = '%y%m%d' )
 
+def CompareFileCreatetime( path, hour = 12 ):
+
+    one_days_ago = datetime.now( ) - timedelta( hours = hour )
+
+    try:
+        filetime = datetime.fromtimestamp( os.path.getctime( path ) )
+
+        # print( 'filetime', filetime )
+        # print( 'one_days_ago', one_days_ago )
+
+        if filetime < one_days_ago:
+            # print( path, '檔案更新' )
+            return True
+        else:
+            print( '{:<20}更新時間不超過{}hour'.format( path, hour ) )
+            return False
+
+    except Exception as e:
+        print( '{} 首次捉取'.format( e ) )
+    # except FileNotFoundError:
+        pass
+
+    return True
+
+def GetFile( *lst ):
+
+    now_str = datetime.now( ).strftime( '%Y-%#m-%d' )
+
+    for stock in lst:
+        investors = Investors( stock, now_str )
+        try:
+            if CompareFileCreatetime( investors.path ):
+                investors.GetYearAgo( year = 1 )
+                investors.GetData( )
+                investors.ClearData( )
+                investors.CombineDF( )
+                investors.SaveCSV( )
+        except Exception as e:
+            print( '{ } no data {}'.format( stock, e ) )
+
+        print( '{} 開始 {} 結束 {}'.format( stock, investors.bdate, investors.edate ) )
+
 def main( ):
 
-    server   = 'localhost'
-    database = 'StockDB'
-    username = 'sa'
-    password = '292929'
-
-    db = dbHandle( server, database, username, password )
+    try:
+        db = dbHandle( 'localhost', 'StockDB', 'sa', 'admin' )
+    except Exception as e:
+        db = dbHandle( 'localhost', 'StockDB', 'sa', '292929' )
+        print( str(e) )
 
     stock_lst = db.GetStockList( )
 
-    start_tmr = datetime.now( )
+    thread_count = 2
+    thread_list = [ ]
 
-    year = 1
-    now_str = datetime.now( ).strftime( '%Y-%#m-%d' )
-    # now_str = "2017-9-4"
+    for i in range( thread_count ):
+        start = math.floor( i * len( stock_lst ) / thread_count )
+        end   = math.floor( ( i + 1 ) * len( stock_lst ) / thread_count )
+        print( 'stock_lst', start, end )
+        thread_list.append( threading.Thread( target = GetFile, args = stock_lst[ start:end ] ) )
 
-    # for stock in [ '9958' ]:
-    for stock in stock_lst:
-        try:
-            investors = Investors( stock, now_str )
-            investors.GetYearAgo( year = year )
-            investors.GetData( )
-            investors.ClearData( )
-            investors.CombineDF( )
-            investors.SaveCSV( )
-        except:
-            print( stock, 'no data' )
+    for thread in thread_list:
+        thread.start( )
 
-        print( stock, '結束',investors.edate, '開始', investors.bdate )
-
-    print( datetime.now( ) - start_tmr )
+    for thread in thread_list:
+        thread.join( )
 
 if __name__ == '__main__':
 
-        main( )
+    start_tmr = time.time( )
+    main( )
+    print( 'The script took {:06.2f} minute !'.format( ( time.time( ) - start_tmr ) / 60 ) )
