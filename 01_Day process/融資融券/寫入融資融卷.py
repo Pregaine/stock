@@ -6,13 +6,18 @@ import os
 import csv
 from datetime import datetime
 import pandas as pd
+import time
+import numpy as np
 
 class DB_MarginTrad:
 
     def __init__( self, server, database, username, password ):
 
+        cmd = """SET LANGUAGE us_english; set dateformat ymd;"""
         self.df = pd.DataFrame( )
         self.src_df = pd.DataFrame( )
+        self.stock = ''
+        self.table = 'MARGINTRADING'
 
         self.datelst = [ ]
         print( "Initial Database connection..." + database )
@@ -24,229 +29,158 @@ class DB_MarginTrad:
 
         self.cur_db = self.con_db.cursor( )
         self.con_db.commit( )
+        self.cur_db.execute( cmd )
 
     def Reset_Table( self ):
         # Do some setup
-        with self.cur_db.execute( '''DROP TABLE IF EXISTS MarginTrad;''' ):
-            print( 'Successfuly Deleter all Table' )
+        with self.cur_db.execute( '''DROP TABLE IF EXISTS MARGINTRADING;''' ):
+            print( 'Successfuly Deleter MARGINTRADING Table' )
 
     def CreatDB(self):
 
         with self.cur_db.execute( '''
         
-            CREATE TABLE dbo.MarginTrad
+            CREATE TABLE dbo.MARGINTRADING
         	(
-                id int NOT NULL IDENTITY (1, 1),
-                stock_id int NOT NULL,
-                date_id int NOT NULL,
+                stock int NOT NULL,
+                date date NOT NULL,
 
-                Financing_Buy int,
-                Financing_Sell int,
-                Financing_PayOff int,
-                Financing_Over int,
-                Financing_Increase int,
-                Financing_Limit int,
-                Financing_Use float,
+                Financing_Buy        decimal(10, 2) NULL,
+                Financing_Sell        decimal(10, 2) NULL,
+                Financing_PayOff    decimal(10, 2) NULL,
+                Financing_Over       decimal(10, 2) NULL,
+                Financing_Increase  decimal(10, 2) NULL,
+                Financing_Limit      decimal(10, 2) NULL,
+                Financing_Use        decimal(10, 2) NULL,
                 
-                Margin_Sell int,
-                Margin_Buy int,
-                Margin_PayOff int,
-                Margin_Over int,
-                Margin_Increase int,
-                Margin_Ratio float,
-                Margin_Offset int
+                Margin_Sell           decimal(10, 2) NULL,
+                Margin_Buy           decimal(10, 2) NULL,
+                Margin_PayOff       decimal(10, 2) NULL,
+                Margin_Over          decimal(10, 2) NULL,
+                Margin_Increase     decimal(10, 2) NULL,
+                Margin_Ratio         decimal(10, 2) NULL,
+                Margin_Offset        decimal(10, 2) NULL,
                               
         	)  ON [PRIMARY]
-
-            ALTER TABLE dbo.MarginTrad ADD CONSTRAINT
-        	PK_MarginTrad PRIMARY KEY CLUSTERED 
-        	(
-        	    id
-        	) WITH( STATISTICS_NORECOMPUTE = OFF, 
-        	IGNORE_DUP_KEY = OFF, 
-        	ALLOW_ROW_LOCKS = ON, 
-        	ALLOW_PAGE_LOCKS = ON ) ON [PRIMARY]
-        	
-            ALTER TABLE dbo.MarginTrad SET ( LOCK_ESCALATION = TABLE )
 
             COMMIT''' ):
             print( 'Successfuly Create 融資融券' )
 
-    def GetStockList( self ):
 
-        cmd = '''SELECT [symbol] FROM [StockDB].[dbo].[Stocks]'''
+    def CompareDB( self ):
+
+        cmd = 'SELECT date,  Financing_Buy FROM MARGINTRADING WHERE STOCK = {}'.format( self.stock )
 
         ft = self.cur_db.execute( cmd ).fetchall( )
 
-        return [ val[ 0 ] for val in ft ]
-
-    def GetDateLst( self, value ):
-
-        datelst = [ ]
-
-        stock_id = self.GetStockID( value )
-
-        ft = self.cur_db.execute( 'SELECT date_id FROM MarginTrad WHERE stock_id = (?)', ( stock_id, ) ).fetchall( )
-
-        if ft is not None:
-            for val in ft:
-                value = self.cur_db.execute( 'SELECT date FROM Dates WHERE id = ( ? )', ( val ) ).fetchone( )[ 0 ]
-                datelst.append( value.strftime('%Y%m%d') )
-
-        return datelst
-
-    def GetStock(self, stock_id ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 symbol FROM Stocks Where id = ?', ( stock_id, ) ).fetchone( )
-
-        return ft[ 0 ]
-
-    def GetDate(self, date_id ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 date FROM Dates WHERE id = ?', (date_id,) ).fetchone( )
-
-        return ft[ 0 ]
-
-
-    def GetStockID( self, stock_symbol ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Stocks WHERE symbol = ?', (stock_symbol,) ).fetchone( )
-
-        return ft[ 0 ]
-
-    def GetDateID( self, val ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Dates WHERE date = ?', (val,) ).fetchone( )
-
-        if ft is None:
-            self.cur_db.execute( 'INSERT INTO Dates ( date ) VALUES ( ? )', (val,) )
-            return self.cur_db.execute( 'SELECT TOP 1 id FROM Dates WHERE date = ?', (val,) ).fetchone( )[ 0 ]
-        else:
-            return ft[ 0 ]
-
-    def CompareDB( self, stock_num ):
-
-        ft = self.cur_db.execute( 'select * from MarginTrad where stock_id = ?', ( stock_num ) ).fetchall( )
-
-        data = [ ]
+        lst = [ ]
 
         for val in ft:
 
-            lst = [ 'None' if v is None else v for v in val ]
+            date = val[ 0 ].strftime( '%y%m%d' )
 
-            lst[ 1 ] = self.GetStock( lst[ 1 ] )
-            lst[ 2 ] = self.GetDate( lst[ 2 ] ).strftime( '%y%m%d' )
+            Financing_Buy = val[ 1 ]
 
-            data.append( lst )
+            lst.append( ( date, Financing_Buy ) )
 
-        column = [ 'id', '股號', '日期',
-                    '融資買進', '融資賣出', '融資現償', '融資餘額', '融資增減', '融資限額', '融資使用率',
-                    '融券賣出', '融券買進', '融券券償', '融券餘額', '融券增減', '融券券資比', '資券相抵' ]
+        df_db = pd.DataFrame( lst, columns = [ '日期', 'Financing_Buy_FromDB' ] )
 
-        self.src_df = pd.DataFrame( data, columns = column )
+        left = pd.merge( self.df, df_db, on = [ '日期' ], how = 'left' )
 
-        del self.src_df[ 'id' ]
-        del self.src_df[ '股號' ]
+        left = left[ left[ 'Financing_Buy_FromDB' ] != left[ '融資買進' ] ]
 
-        self.df = pd.concat( [ self.df, self.src_df ], ignore_index = True )
-        self.df.drop_duplicates( [ '日期' ], keep = False, inplace = True )
-        # self.df.sort_values( by = '日期', ascending = True, inplace = True )
-        # self.df.reset_index( drop = True, inplace = True )
+        del left[ 'Financing_Buy_FromDB' ]
 
-        lst = [ '日期',
-                   '融資買進', '融資賣出', '融資現償', '融資餘額', '融資增減', '融資限額', '融資使用率',
-                   '融券賣出', '融券買進', '融券券償', '融券餘額', '融券增減', '融券券資比', '資券相抵' ]
-
-        self.df = self.df[ lst ]
+        self.df = left
 
         # print( self.df )
         # print( stock_num, self.src_df.iloc[ 0 ] )
         # print( stock_num, self.df.iloc[ 0 ] )
 
-    def GetStockDF( self, value ):
+    def FindDuplicate( self, date ):
 
-        datelst = [ ]
 
-        stock_id = self.GetStockID( value )
+        cmd = 'SELECT * FROM {} where stock = \'{}\' and date = \'{}\''.format( self.table, self.stock, date )
 
-        ft = self.cur_db.execute( 'SELECT date_id FROM Tdcc WHERE stock_id = (?)', ( stock_id, ) ).fetchall( )
+        # print( cmd )
+        # 尋找重覆資料
+        ft = self.cur_db.execute( cmd ).fetchone( )
+
+        print( '比對 {} Table 資料'.format( self.table ) )
 
         if ft is not None:
-            for val in ft:
-                value = self.cur_db.execute( 'SELECT date FROM Dates WHERE id = ( ? )', ( val ) ).fetchone( )[ 0 ]
-                datelst.append( value.strftime('%Y%m%d') )
+            cmd = 'DELETE FROM {} where stock = \'{}\' and date = \'{}\''.format( self.table, self.stock, date )
+            with self.cur_db.execute( cmd ):
+                print( '刪除重覆資料 {} {}'.format( self.stock, date ) )
 
-        return datelst
+    def ReadCSV( self, path ):
 
-    def ReadCSV( self, file ):
+        self.df = pd.read_csv( path, sep = ',', encoding = 'utf8', false_values = 'NA', dtype = { '日期': str } )
 
-        self.df = pd.read_csv( file, sep = ',', encoding = 'utf8', false_values = 'NA', dtype = { '日期': str } )
+        self.df = self.df.replace( [ np.inf, -np.inf ], np.nan )
 
         # self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%y%m%d" )
-
         # print( self.df )
 
-    def WriteDB( self, stock_num ):
+    def WriteDB( self, First_Create = False ):
 
         self.df = self.df.astype( object ).where( pd.notnull( self.df ), None )
 
         lst = self.df.values.tolist( )
 
         if len( lst ) == 0:
-            print( stock_num, 'exist DB' )
+            print( '{} 資料表比對CSV無新資料 {}'.format( self.table, self.stock ) )
+            return
 
         for val in lst:
 
-            varlist = val
+            val[ 0 ] = self.stock
+            dt = datetime.strptime( val[ 1 ], '%y%m%d' )
+            val[ 1 ] = dt.strftime( "%y-%m-%d" )
 
-            var_string = ', '.join( '?' * ( len( varlist ) + 1 ) )
+            var_string = ', '.join( '?' * ( len( val )  ) )
+            query_string = 'INSERT INTO {} VALUES ( {} );'.format( self.table, var_string )
 
-            query_string = 'INSERT INTO MarginTrad VALUES ( {} );'.format( var_string )
+            print( '取出{}'.format( val ) )
 
-            date_id = self.GetDateID( varlist[ 0 ] )
+            if First_Create is False:
+                self.FindDuplicate( val[ 1 ] )
 
-            varlist[ 0 ] = date_id
-
-            varlist.insert( 0, stock_num )
-
-            self.cur_db.execute( query_string, ( varlist ) )
-
-            print( varlist )
+            with self.cur_db.execute( query_string, val ):
+                print( '寫入 {} Table {} {}'.format( self.table, val[ 0 ], val[ 1 ] ) )
 
 def main( ):
 
-    server   = 'localhost'
-    database = 'StockDB'
-    username = 'sa'
-    password = '292929'
+    First_Create = False
+    try:
+        db = DB_MarginTrad( 'localhost', 'StockDB', 'sa', '292929' )
+    except Exception:
+        db = DB_MarginTrad( 'localhost', 'StockDB', 'sa', 'admin' )
 
-    db = DB_MarginTrad( server, database, username, password )
-
-    # db.Reset_Table( )
-    # db.CreatDB( )
-
-    start_tmr = datetime.now( )
+    First_Create = True
+    db.Reset_Table( )
+    db.CreatDB( )
 
     # 讀取資料夾
     for file in os.listdir( '.\\' ):
 
-        if file.endswith( ".csv" ) != 1:
+        if file.endswith( "_融資融卷.csv" ) != 1:
             continue
 
-        stock = file[ 0:4 ]
+        db.stock = file[ 0:4 ]
+        print( '{}'.format(db.stock ) )
 
         db.ReadCSV( file )
 
-        stock_id = db.GetStockID( stock )
+        db.CompareDB( )
 
-        db.CompareDB( stock_id )
-
-        db.WriteDB( stock_id )
+        db.WriteDB( First_Create )
 
         db.cur_db.commit( )
 
-    print( datetime.now( ) - start_tmr )
 
 if __name__ == '__main__':
 
-        main( )
+    start_tmr = time.time( )
+    main( )
+    print( 'The script took {:06.1f} minute !'.format( (time.time( ) - start_tmr) / 60 ) )

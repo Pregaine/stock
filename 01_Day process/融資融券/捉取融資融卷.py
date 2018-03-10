@@ -12,6 +12,8 @@ class dbHandle( ):
 
     def __init__( self, server, database, username, password ):
 
+        cmd = """SET LANGUAGE us_english; set dateformat ymd;"""
+
         self.datelst = [ ]
         print( "Initial Database connection..." + database )
         self.dbname = database
@@ -22,6 +24,8 @@ class dbHandle( ):
 
         self.cur_db = self.con_db.cursor( )
         self.con_db.commit( )
+
+        self.cur_db.execute( cmd )
 
     def GetStockList( self ):
 

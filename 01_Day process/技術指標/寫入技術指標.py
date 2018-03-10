@@ -502,30 +502,29 @@ def main( ):
     First_Create = False
 
     try:
-        password = 'admin'
-        db_M = DB_TechAnalysis( server, database, username, password )
-        db_W = DB_TechAnalysis( server, database, username, password )
-        db_D = DB_TechAnalysis( server, database, username, password )
-        db_H = DB_TechAnalysis( server, database, username, password )
-    except:
-        password = '292929'
-        db_M = DB_TechAnalysis( server, database, username, password )
-        db_W = DB_TechAnalysis( server, database, username, password )
-        db_D = DB_TechAnalysis( server, database, username, password )
-        db_H = DB_TechAnalysis( server, database, username, password )
+        db_M = DB_TechAnalysis( server, database, username, 'admin' )
+        db_W = DB_TechAnalysis( server, database, username, 'admin' )
+        db_D = DB_TechAnalysis( server, database, username, 'admin' )
+        db_H = DB_TechAnalysis( server, database, username, 'admin' )
+    except Exception as e:
+        print( '{}'.format( e ) )
+        db_M = DB_TechAnalysis( server, database, username, '292929' )
+        db_W = DB_TechAnalysis( server, database, username, '292929' )
+        db_D = DB_TechAnalysis( server, database, username, '292929' )
+        db_H = DB_TechAnalysis( server, database, username, '292929' )
 
     # 移除表格
-    First_Create = True
-    db_M.ResetTable( '月' )
-    db_W.ResetTable( '周' )
-    db_D.ResetTable( '日' )
-    db_H.ResetTable( '分' )
+    # First_Create = True
+    # db_M.ResetTable( '月' )
+    # db_W.ResetTable( '周' )
+    # db_D.ResetTable( '日' )
+    # db_H.ResetTable( '分' )
 
     # 建立資料表
-    db_M.CreateTable( '月' )
-    db_W.CreateTable( '周' )
-    db_D.CreateTable( '日' )
-    db_H.CreateTable( '分' )
+    # db_M.CreateTable( '月' )
+    # db_W.CreateTable( '周' )
+    # db_D.CreateTable( '日' )
+    # db_H.CreateTable( '分' )
 
     stock_d = {
             '分': [ db_H, '_60分線技術指標.csv'],
