@@ -3,6 +3,10 @@ import pandas as pd
 from datetime import datetime, timedelta
 import json
 import os
+import time
+from stem import Signal
+from stem.control import Controller
+import requests
 
 class LendOver:
 
@@ -19,27 +23,37 @@ class LendOver:
 
     def GetData( self, date_str ):
 
+        print( 'LendOver Get Date {} 證交所借券系統與證商/證金營業處所借券餘額合計表'.format( date_str ) )
         url = "http://www.twse.com.tw/exchangeReport/TWT72U"
 
-        # querystring = {"response":"json","date":"20170913","selectType":"SLBNLB","_":"1505545708340"}
-
-        querystring = { "response": "json", "date": date_str, "selectType": "SLBNLB", "_": "1505545708340" }
-
-        headers = {
-            'accept': "application/json, text/javascript, */*; q=0.01",
-            'x-requested-with': "XMLHttpRequest",
-            'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.91 Safari/537.36",
+        querystring = { "response": "json", "date": date_str, "selectType": "SLBNLB", "_": "1520858126544" }
+        headers = { 'accept': "application/json, text/javascript, */*; q=0.01", 'x-requested-with': "XMLHttpRequest",
+            'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.186 Safari/537.36",
             'referer': "http://www.twse.com.tw/zh/page/trading/exchange/TWT72U.html",
-            'accept-encoding': "gzip, deflate",
-            'accept-language': "zh-TW,zh-CN;q=0.8,zh;q=0.6,en-US;q=0.4,en;q=0.2",
-            'cookie': "JSESSIONID=8688F6ED6AD677B886011F56B3E86D0E; _ga=GA1.3.1953932169.1504347589; _gid=GA1.3.981495820.1505442422",
-            'cache-control': "no-cache",
-            'postman-token': "6790b24b-e9c5-61ac-5eea-f8ee81d4204e"
-            }
+            'accept-encoding': "gzip, deflate", 'accept-language': "zh-TW",
+            'cookie': "_ga=GA1.3.1838061013.1520518370; _gid=GA1.3.1972994029.1520761897; JSESSIONID=627854663D0CFAB13435F0FA8680B206; _ga=GA1.3.1838061013.1520518370; _gid=GA1.3.1972994029.1520761897; JSESSIONID=FFC6E200FF9907F89C5EEBCDD9DBA2CB; _gat=1",
+            'cache-control': "no-cache", 'postman-token': "9b9699c7-e95e-7079-3db7-3479ae986ea7" }
 
-        response = requests.request("GET", url, headers=headers, params=querystring)
+        session = get_tor_session( )
+        response = ''
 
-        # print(response.text)
+        while response == '':
+            try:
+                response = session.request( "GET", url, headers = headers, params = querystring )
+            except Exception as e:
+                set_new_ip()
+                print( "LendOver Connection refused by the server.." )
+                print( "Let me sleep for 1 seconds" )
+                print( "ZZzzzz... set_new_ip {}".format( session.get( "http://httpbin.org/ip" ).text ) )
+                time.sleep( 1 )
+                print( "Was a nice sleep, now let me continue..." )
+                continue
+
+        # print( response.text, type( response.text ) )
+
+        if response.text == "{\"stat\":\"很抱歉，沒有符合條件的資料!\"}":
+            print(  '很抱歉，沒有符合條件的資料 證交所借券系統與證商/證金營業處所借券餘額合計表 {}'.format( date_str ) )
+            return True
 
         self.obj = json.loads( response.text )
 
@@ -64,6 +78,7 @@ class LendOver:
 
         self.df[ '借券餘額差值' ] = self.df[ '借券餘額異動股借券' ] - self.df[ '借券餘額異動股還券' ]
 
+        return False
         # print( self.df )
 
 class Lend:
@@ -72,11 +87,7 @@ class Lend:
 
     # 取得限制日期
         self.datelst = [ ]
-
         self.df = pd.DataFrame( )
-
-    # datetime.datetime( 2012, 3, 23, 23, 24, 55, 173504 )
-    # datetime.datetime.today( ).weekday( )
 
         self.date = ''
         self.path = ''
@@ -85,31 +96,35 @@ class Lend:
     # 分類
     # 借券賣出 當日餘額
 
-    # def GetNowTime(self):
-
     # 下載CSV
     def GetDate( self, date_str ):
 
+        print( 'Lend     Get Date {} 信用額度總量管制餘額表'.format( date_str ) )
+
         url = "http://www.twse.com.tw/exchangeReport/TWT93U"
-
-        # querystring = { "response": "json", "date": "20170914", "_": "1505464008724" }
-
-        querystring = { "response": "json", "date": date_str, "_": "1505464008724" }
-
-        headers = \
-        {
-            'accept': "application/json, text/javascript, */*; q=0.01",
-            'x-requested-with': "XMLHttpRequest",
-            'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.91 Safari/537.36",
+        querystring = { "response": "json", "date": date_str, "_": "1520856196380" }
+        headers = { 'accept': "application/json, text/javascript, */*; q=0.01", 'x-requested-with': "XMLHttpRequest",
+            'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.186 Safari/537.36",
             'referer': "http://www.twse.com.tw/zh/page/trading/exchange/TWT93U.html",
-            'accept-encoding': "gzip, deflate",
-            'accept-language': "zh-TW,zh-CN;q=0.8,zh;q=0.6,en-US;q=0.4,en;q=0.2",
-            'cookie': "_gat=1; _ga=GA1.3.1953932169.1504347589; _gid=GA1.3.981495820.1505442422; JSESSIONID=04A88BEC726B014955739B03A8A87453; JSESSIONID=F232D8F258218AE56423D4075FD5943B; _ga=GA1.3.1953932169.1504347589; _gid=GA1.3.981495820.1505442422",
-            'cache-control': "no-cache",
-            'postman-token': "4f5c84e9-c7a7-64ba-fdf0-ad96a614614b"
-        }
+            'accept-encoding': "gzip, deflate", 'accept-language': "zh-TW",
+            'cookie': "_ga=GA1.3.1838061013.1520518370; _gid=GA1.3.1972994029.1520761897; JSESSIONID=627854663D0CFAB13435F0FA8680B206",
+            'cache-control': "no-cache", 'postman-token': "74402c4b-3254-6411-4a63-0bc01f43c7d3" }
 
-        response = requests.request( "GET", url, headers = headers, params = querystring )
+        session = get_tor_session( )
+
+        response = ''
+
+        while response == '':
+            try:
+                response = session.request( "GET", url, headers = headers, params = querystring )
+            except Exception as e:
+                set_new_ip( )
+                print( "Lend Connection refused by the server.." )
+                print( "Let me sleep for 0.1 seconds set_new_ip" )
+                print( "ZZzzzz... set_new_ip {}".format( session.get( "http://httpbin.org/ip" ).text ) )
+                time.sleep( 0.1 )
+                print( "Was a nice sleep, now let me continue..." )
+                continue
 
         # print( response.text )
 
@@ -160,6 +175,23 @@ class Lend:
 
         # print( self.df )
 
+def set_new_ip(  ):
+    """Change IP using TOR"""
+    with Controller.from_port( port = 9051 ) as controller:
+        controller.authenticate( )
+        controller.signal( Signal.NEWNYM )
+
+
+def get_tor_session():
+    session = requests.session()
+    # Tor uses the 9050 port as the default socks port
+    session.proxies = {'http':  'socks5://127.0.0.1:9150',
+                       'https': 'socks5://127.0.0.1:9150'}
+
+    session.verify = False
+
+    return session
+
 def SaveCSV( df, path ):
 
     lst = [ '股票代號', '證券名稱',
@@ -171,53 +203,58 @@ def SaveCSV( df, path ):
 
     df.to_csv( path, sep = ',', encoding = 'utf-8' )
 
-def main( ):
-
-    start_tmr = datetime.now( )
-
-    EdateObj = datetime.today( ) - timedelta( days = 365 )
-    BdateObj = datetime.today() + timedelta( days = 1 )
+def GetFile( BdateObj, EdateObj ):
 
     while BdateObj > EdateObj:
 
-        BdateObj = BdateObj - timedelta( days = 1 )
-
         weekday = BdateObj.weekday( )
-        date = BdateObj.strftime( '%Y%m%d' )
 
-        # 六, 日不捉
+        # 日不捉，因禮拜六有可能補班
         if weekday > 5:
+            print( '{} 星期 {} 假日跳過'.format( BdateObj.strftime( "%y%m%d" ), weekday ) )
+            BdateObj = BdateObj - timedelta( days = 1 )
             continue
 
+        date = BdateObj.strftime( '%Y%m%d' )
         file_name = '捉取借卷_' + date + '.csv'
+        BdateObj = BdateObj - timedelta( days = 1 )
 
         if os.path.isfile( file_name ):
             print( file_name, "已存在" )
             continue
 
-        try:
-            # 借卷
-            LendObj = Lend( )
-            LendObj.GetDate( date )
+        time.sleep( 0.1 )
+        # 借卷餘額
+        LendOverObj = LendOver(  )
+        if LendOverObj.GetData( date ):
+            continue
 
-            # 借卷餘額
-            LendOverObj = LendOver(  )
-            LendOverObj.GetData( date )
+        time.sleep( 0.1 )
+        # 借卷
+        LendObj = Lend( )
+        LendObj.GetDate( date )
 
-            # 合併
-            result = pd.merge( LendOverObj.df, LendObj.df, on = '股票代號' )
+        # 合併
+        result = pd.merge( LendOverObj.df, LendObj.df, on = '股票代號' )
+        SaveCSV( result, file_name )
+        print( '{} {} 捉取成功'.format( date, BdateObj.weekday( ) ) )
 
-            SaveCSV( result, file_name )
 
-            print( date, BdateObj.weekday( ) )
-            # print( result.iloc[ -1 ] )
 
-        except:
-            print( date, weekday, "借卷捉取網頁失敗" )
+def main( ):
 
-    print( datetime.now( ) - start_tmr )
+        BdateObj = datetime.today( )
+        EdateObj = datetime.today( ) - timedelta( days = 365 )
+
+        print( 'Data 開始 {} 結束 {}'.format( BdateObj, EdateObj ) )
+
+        GetFile( BdateObj, EdateObj )
 
 
 if __name__ == '__main__':
 
+    start_tmr = time.time( )
+
     main( )
+
+    print( 'The script took {:06.2f} minute !'.format( (time.time( ) - start_tmr ) / 60 ) )

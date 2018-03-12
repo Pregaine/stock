@@ -532,7 +532,6 @@ def main( ):
             '周': [ db_W, '_周線技術指標.csv'],
             '月': [ db_M, '_月線技術指標.csv'] }
 
-    start_tmr = datetime.now( )
 
     # 讀取資料夾
     for file in glob.glob( '*.csv' ):
@@ -563,8 +562,10 @@ def main( ):
         else:
             print( '讀取錯誤 {}'.format( data ) )
 
-    print( datetime.now( ) - start_tmr )
+    
 
 if __name__ == '__main__':
 
+    start_tmr = datetime.now( )
     main( )
+    print( datetime.now( ) - start_tmr )
