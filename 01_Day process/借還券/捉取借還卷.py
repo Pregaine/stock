@@ -28,35 +28,31 @@ class LendOver:
 
         querystring = { "response": "json", "date": date_str, "selectType": "SLBNLB", "_": "1520858126544" }
         headers = { 'accept': "application/json, text/javascript, */*; q=0.01", 'x-requested-with': "XMLHttpRequest",
-            'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.186 Safari/537.36",
+            'user-agent': "Chrome/64.0.3282.186 Safari/537.36",
             'referer': "http://www.twse.com.tw/zh/page/trading/exchange/TWT72U.html",
             'accept-encoding': "gzip, deflate", 'accept-language': "zh-TW",
             'cookie': "_ga=GA1.3.1838061013.1520518370; _gid=GA1.3.1972994029.1520761897; JSESSIONID=627854663D0CFAB13435F0FA8680B206; _ga=GA1.3.1838061013.1520518370; _gid=GA1.3.1972994029.1520761897; JSESSIONID=FFC6E200FF9907F89C5EEBCDD9DBA2CB; _gat=1",
-            'cache-control': "no-cache", 'postman-token': "9b9699c7-e95e-7079-3db7-3479ae986ea7" }
+            'cache-control': "no-cache" }
 
-        session = get_tor_session( )
         response = ''
 
         while response == '':
             try:
-                response = session.request( "GET", url, headers = headers, params = querystring )
-            except Exception as e:
+                response = requests.request( "GET", url, headers = headers, params = querystring )
+            except requests.exceptions.ConnectionError as e:
                 set_new_ip()
-                print( "LendOver Connection refused by the server.." )
-                print( "Let me sleep for 1 seconds" )
-                print( "ZZzzzz... set_new_ip {}".format( session.get( "http://httpbin.org/ip" ).text ) )
-                time.sleep( 1 )
-                print( "Was a nice sleep, now let me continue..." )
+                session = get_tor_session( )
+                print( "set new ip {}".format( session.get( "http://httpbin.org/ip" ).text ) )
+                response = session.request( "GET", url, headers = headers, params = querystring )
                 continue
-
-        # print( response.text, type( response.text ) )
 
         if response.text == "{\"stat\":\"很抱歉，沒有符合條件的資料!\"}":
             print(  '很抱歉，沒有符合條件的資料 證交所借券系統與證商/證金營業處所借券餘額合計表 {}'.format( date_str ) )
             return True
 
-        self.obj = json.loads( response.text )
+        print( response.text )
 
+        self.obj = json.loads( response.text )
         self.date = self.obj[ 'date' ]
 
         self.df = pd.DataFrame( self.obj[ 'data' ][ 0: -3 ], columns = self.obj[ 'fields' ] )
@@ -108,26 +104,21 @@ class Lend:
             'referer': "http://www.twse.com.tw/zh/page/trading/exchange/TWT93U.html",
             'accept-encoding': "gzip, deflate", 'accept-language': "zh-TW",
             'cookie': "_ga=GA1.3.1838061013.1520518370; _gid=GA1.3.1972994029.1520761897; JSESSIONID=627854663D0CFAB13435F0FA8680B206",
-            'cache-control': "no-cache", 'postman-token': "74402c4b-3254-6411-4a63-0bc01f43c7d3" }
-
-        session = get_tor_session( )
+            'cache-control': "no-cache" }
 
         response = ''
 
         while response == '':
             try:
-                response = session.request( "GET", url, headers = headers, params = querystring )
-            except Exception as e:
+                response = requests.request( "GET", url, headers = headers, params = querystring )
+            except requests.exceptions.ConnectionError as e:
                 set_new_ip( )
-                print( "Lend Connection refused by the server.." )
-                print( "Let me sleep for 0.1 seconds set_new_ip" )
-                print( "ZZzzzz... set_new_ip {}".format( session.get( "http://httpbin.org/ip" ).text ) )
-                time.sleep( 0.1 )
-                print( "Was a nice sleep, now let me continue..." )
+                session = get_tor_session( )
+                print( "set new ip {}".format( session.get( "http://httpbin.org/ip" ).text ) )
+                response = session.request( "GET", url, headers = headers, params = querystring )
                 continue
 
         # print( response.text )
-
         self.obj = json.loads( response.text )
 
         self.date = self.obj[ 'date' ]
@@ -207,30 +198,28 @@ def GetFile( BdateObj, EdateObj ):
 
     while BdateObj > EdateObj:
 
-        weekday = BdateObj.weekday( )
-
-        # 日不捉，因禮拜六有可能補班
-        if weekday > 5:
-            print( '{} 星期 {} 假日跳過'.format( BdateObj.strftime( "%y%m%d" ), weekday ) )
-            BdateObj = BdateObj - timedelta( days = 1 )
-            continue
-
         date = BdateObj.strftime( '%Y%m%d' )
-        file_name = '捉取借卷_' + date + '.csv'
+        file_name = '捉取借卷_{}.csv'.format( date )
+        weekday = BdateObj.weekday( )
         BdateObj = BdateObj - timedelta( days = 1 )
 
         if os.path.isfile( file_name ):
-            print( file_name, "已存在" )
+            print( "{} 已存在".format( file_name ) )
             continue
 
-        time.sleep( 0.1 )
+        # 禮拜日不捉，因禮拜六有可能補班
+        if weekday > 4:
+            print( '{} 星期 {} 假日跳過'.format( date, weekday ) )
+            continue
+
         # 借卷餘額
+        time.sleep( 0.1 )
         LendOverObj = LendOver(  )
         if LendOverObj.GetData( date ):
             continue
 
-        time.sleep( 0.1 )
         # 借卷
+        time.sleep( 0.1 )
         LendObj = Lend( )
         LendObj.GetDate( date )
 
@@ -238,8 +227,6 @@ def GetFile( BdateObj, EdateObj ):
         result = pd.merge( LendOverObj.df, LendObj.df, on = '股票代號' )
         SaveCSV( result, file_name )
         print( '{} {} 捉取成功'.format( date, BdateObj.weekday( ) ) )
-
-
 
 def main( ):
 
