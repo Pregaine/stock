@@ -4,12 +4,14 @@ import pyodbc
 import os
 from datetime import datetime
 import pandas as pd
+import time
 
 
 class DB_Lend:
 
     def __init__( self, server, database, username, password ):
 
+        cmd = """SET LANGUAGE us_english; set dateformat ymd;"""
         self.df = pd.DataFrame( )
         self.src_df = pd.DataFrame( )
 
@@ -24,21 +26,21 @@ class DB_Lend:
 
         self.cur_db = self.con_db.cursor( )
         self.con_db.commit( )
+        self.cur_db.execute( cmd )
 
     def Reset_Table( self ):
         # Do some setup
-        with self.cur_db.execute( '''DROP TABLE IF EXISTS Lend;''' ):
+        with self.cur_db.execute( '''DROP TABLE IF EXISTS LEND;''' ):
             print( 'Successfuly Deleter all Table' )
 
     def CreatDB( self ):
 
         with self.cur_db.execute( '''
 
-            CREATE TABLE dbo.Lend 
+            CREATE TABLE dbo.LEND 
         	(
-                id int NOT NULL IDENTITY (1, 1),
-                stock_id int NOT NULL,
-                date_id int NOT NULL,
+                stock int NOT NULL,
+                date date NOT NULL,
                 
                 lend_over int,
                 lend_chang int,
@@ -53,127 +55,48 @@ class DB_Lend:
 
         	)  ON [PRIMARY]
 
-            ALTER TABLE dbo.Lend ADD CONSTRAINT
-        	PK_Lend PRIMARY KEY CLUSTERED 
-        	(
-        	    id
-        	) WITH( STATISTICS_NORECOMPUTE = OFF, 
-        	IGNORE_DUP_KEY = OFF, 
-        	ALLOW_ROW_LOCKS = ON, 
-        	ALLOW_PAGE_LOCKS = ON ) ON [PRIMARY]
-
-            ALTER TABLE dbo.Lend SET ( LOCK_ESCALATION = TABLE )
-
             COMMIT''' ):
             print( 'Successfuly Create 借還券' )
 
-    def GetStockList( self ):
+    def FindDuplicate( self, num, date ):
 
-        cmd = '''SELECT [symbol] FROM [StockDB].[dbo].[Stocks]'''
+        cmd = '''SELECT * FROM LEND WHERE stock = {} and date = \'{}\' '''.format( num, date )
 
-        ft = self.cur_db.execute( cmd ).fetchall( )
+        # 尋找重覆資料
+        ft = self.cur_db.execute( cmd  ).fetchone( )
 
-        return [ val[ 0 ] for val in ft ]
-
-    def GetDateLst( self, value ):
-
-        datelst = [ ]
-
-        stock_id = self.GetStockID( value )
-
-        ft = self.cur_db.execute( 'SELECT date_id FROM MarginTrad WHERE stock_id = (?)', (stock_id,) ).fetchall( )
+        print( '比對資料庫資料 {} {}'.format( num, date ) )
 
         if ft is not None:
-            for val in ft:
-                value = self.cur_db.execute( 'SELECT date FROM Dates WHERE id = ( ? )', (val) ).fetchone( )[ 0 ]
-                datelst.append( value.strftime( '%Y%m%d' ) )
+            cmd = 'DELETE FROM LEND WHERE stock = {} and date = \'{}\''.format( num, date )
 
-        return datelst
+            with self.cur_db.execute( cmd ):
+                print( '刪除重覆資料 {} {}'.format( num, date ) )
 
-    def GetStock( self, stock_id ):
+    def CompareDB( self ):
 
-        ft = self.cur_db.execute( 'SELECT TOP 1 symbol FROM Stocks Where id = ?', (stock_id,) ).fetchone( )
-
-        return ft[ 0 ]
-
-    def GetDate( self, date_id ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 date FROM Dates WHERE id = ?', (date_id,) ).fetchone( )
-
-        return ft[ 0 ]
-
-    def GetStockID( self, stock_symbol ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Stocks WHERE symbol = ?', (stock_symbol,) ).fetchone( )
-
-        return ft[ 0 ]
-
-    def GetDateID( self, val ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Dates WHERE date = ?', (val,) ).fetchone( )
-
-        if ft is None:
-            self.cur_db.execute( 'INSERT INTO Dates ( date ) VALUES ( ? )', (val,) )
-            return self.cur_db.execute( 'SELECT TOP 1 id FROM Dates WHERE date = ?', (val,) ).fetchone( )[ 0 ]
-        else:
-            return ft[ 0 ]
-
-    def CompareDB( self, date_id ):
-
-        ft = self.cur_db.execute( 'select * from Lend where date_id = ?', (date_id) ).fetchall( )
-
-        data = [ ]
+        cmd = 'SELECT stock, lend_over FROM LEND WHERE date = \'{}\''.format( self.date )
+        ft = self.cur_db.execute( cmd ).fetchall( )
+        lst = [ ]
 
         for val in ft:
+            stock     = val[ 0 ]
+            lend_over = val[ 1 ]
+            lst.append( ( stock, lend_over ) )
 
-            lst = [ 'None' if v is None else v for v in val ]
+        df_db = pd.DataFrame( lst, columns = [ '股票代號', 'lend_over_FromDB' ] )
 
-            lst[ 1 ] = self.GetStock( lst[ 1 ] )
-            # lst[ 2 ] = self.GetDate( lst[ 2 ] ).strftime( '%y%m%d' )
+        left = pd.merge( self.df, df_db, on = [ '股票代號' ], how = 'left' )
 
-            data.append( lst )
+        left = left[ left[ 'lend_over_FromDB' ] != left[ '借券餘額股' ] ]
 
-        column = [ 'id', '股票代號', '日期',
-                   '借券餘額股', '借券餘額異動股借券',
-                   '借券餘額異動股還券', '借券餘額差值',
-                   '借券賣出當日餘額', '借券賣出當日賣出',
-                   '借券賣出當日還券', '借券賣出當日差值',
-                   '借券賣出今日可限額' ]
+        del left[ 'lend_over_FromDB' ]
 
-        self.src_df = pd.DataFrame( data, columns = column )
-
-        del self.src_df[ 'id' ]
-        del self.src_df[ '日期' ]
-
-        self.df = pd.concat( [ self.df, self.src_df ], ignore_index = True )
-        self.df.drop_duplicates( [ '股票代號' ], keep = False, inplace = True )
-
-        column = [ '股票代號', '借券餘額股', '借券餘額異動股借券',
-                   '借券餘額異動股還券', '借券餘額差值',
-                   '借券賣出當日餘額', '借券賣出當日賣出',
-                   '借券賣出當日還券', '借券賣出當日差值',
-                   '借券賣出今日可限額' ]
-
-        self.df = self.df[ column ]
+        self.df = left
 
         # print( self.df )
         # print( stock_num, self.src_df.iloc[ 0 ] )
         # print( self.df.iloc[ 0 ] )
-
-    def GetStockDF( self, value ):
-
-        datelst = [ ]
-
-        stock_id = self.GetStockID( value )
-
-        ft = self.cur_db.execute( 'SELECT date_id FROM Tdcc WHERE stock_id = (?)', (stock_id,) ).fetchall( )
-
-        if ft is not None:
-            for val in ft:
-                value = self.cur_db.execute( 'SELECT date FROM Dates WHERE id = ( ? )', (val) ).fetchone( )[ 0 ]
-                datelst.append( value.strftime( '%Y%m%d' ) )
-
-        return datelst
 
     def ReadCSV( self, file ):
 
@@ -185,53 +108,51 @@ class DB_Lend:
 
         self.df = self.df.loc[ mask ]
 
+        self.df[ "股票代號" ] = self.df[ "股票代號" ].astype( "int" )
+
         # print( self.df )
 
-    def WriteDB( self, date_id ):
+    def WriteDB( self, First_Create ):
 
         self.df = self.df.astype( object ).where( pd.notnull( self.df ), None )
 
         lst = self.df.values.tolist( )
 
         if len( lst ) == 0:
-            print( self.date, 'exist DB' )
-
-        print( '寫入筆數', len( lst ) )
+            print( '資料庫比對CSV無新資料 {}'.format( self.date ) )
+            return
 
         for val in lst:
 
-            varlist = val
+            val.pop( 0 )
+            dt = datetime.strptime( self.date, '%y%m%d' )
+            val.insert( 1, dt.strftime( "%y-%m-%d" ) )
+            var_string = ', '.join( '?' * (len( val ) ) )
 
-            var_string = ', '.join( '?' * (len( varlist ) + 1) )
+            if First_Create is False:
+                self.FindDuplicate( val[ 0 ], val[ 1 ] )
 
-            query_string = 'INSERT INTO Lend VALUES ( {} );'.format( var_string )
+            query_string = 'INSERT INTO LEND VALUES ( {} );'.format( var_string )
+            print( '取出 {}'.format( val ) )
 
-            try:
-                stock_id = self.GetStockID( varlist[ 0 ] )
-            except:
-                print( varlist[ 0 ], '股號未存在資料庫' )
-                continue
+            with self.cur_db.execute( query_string, val ):
+                print( '寫入資料庫 {} {}'.format( val[ 0 ], val[ 1 ] ) )
 
-            varlist[ 0 ] = date_id
-
-            varlist.insert( 0, stock_id )
-
-            self.cur_db.execute( query_string, (varlist) )
 
 
 def main( ):
 
-    server = 'localhost'
-    database = 'StockDB'
-    username = 'sa'
-    password = '292929'
+    try:
+        db = DB_Lend( 'localhost', 'StockDB', 'sa', 'admin' )
+    except Exception as e:
+        print( '{}'.format( e ) )
+        db = DB_Lend( 'localhost', 'StockDB', 'sa', '292929' )
 
-    db = DB_Lend( server, database, username, password )
+    First_Create = False
 
+    # First_Create = True
     # db.Reset_Table( )
     # db.CreatDB( )
-
-    start_tmr = datetime.now( )
 
     # 讀取資料夾
     for file in os.listdir( '.\\' ):
@@ -243,17 +164,14 @@ def main( ):
 
         db.ReadCSV( file )
 
-        date_id = db.GetDateID( db.date )
+        db.CompareDB( )
 
-        db.CompareDB( date_id )
-
-        db.WriteDB( date_id )
+        db.WriteDB( First_Create )
 
         db.cur_db.commit( )
 
-    print( datetime.now( ) - start_tmr )
-
-
 if __name__ == '__main__':
 
+    start_tmr = time.time( )
     main( )
+    print( 'The script took {:06.1f} minute !'.format( time.time( ) - start_tmr ) )
