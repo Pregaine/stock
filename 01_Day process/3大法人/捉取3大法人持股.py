@@ -7,6 +7,7 @@ import time
 import threading
 import math
 import os
+import codes.codes as TWSE
 
 class dbHandle( ):
 
@@ -236,7 +237,8 @@ def main( ):
         print( str(e) )
         db = dbHandle( 'localhost', 'StockDB', 'sa', '292929' )
 
-    stock_lst = db.GetStockList( )
+    # stock_lst = db.GetStockList( )
+    stock_lst = list( TWSE.codes.keys( ) )
 
     thread_count = 2
     thread_list = [ ]

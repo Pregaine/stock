@@ -7,6 +7,7 @@ import time
 import threading
 import math
 import os
+import codes.codes as TWSE
 
 class dbHandle( ):
 
@@ -120,85 +121,85 @@ class Investors:
                     try:
                         self.d[ '融資買進' ].append( int( lst[ 1 ].string.replace( ",", "" ) ) )
                     except Exception as e:
-                        print( '{} {}'.format( self.num, e ) )
+                        # print( '{} {}'.format( self.num, e ) )
                         self.d[ '融資買進' ].append( None )
 
                     try:
                         self.d[ '融資賣出' ].append( int( lst[ 2 ].string.replace( ",", "" ) ) )
                     except Exception as e:
-                        print( '{} {}'.format( self.num, e ) )
+                        # print( '{} {}'.format( self.num, e ) )
                         self.d[ '融資賣出' ].append( None )
 
                     try:
                         self.d[ '融資現償' ].append( int( lst[ 3 ].string.replace( ",", "" ) ) )
                     except Exception as e:
-                        print( '{} {}'.format( self.num, e ) )
+                        # print( '{} {}'.format( self.num, e ) )
                         self.d[ '融資現償' ].append( None )
 
                     try:
                         self.d[ '融資餘額' ].append( int( lst[ 4 ].string.replace( ",", "" ) ) )
                     except Exception as e:
-                        print( '{} {}'.format( self.num, e ) )
+                        # print( '{} {}'.format( self.num, e ) )
                         self.d[ '融資餘額' ].append( None )
 
                     try:
                         self.d[ '融資增減' ].append( int( lst[ 5 ].string.replace( ",", "" ) ) )
                     except Exception as e:
-                        print( '{} {}'.format( self.num, e ) )
+                        # print( '{} {}'.format( self.num, e ) )
                         self.d[ '融資增減' ].append( None )
 
                     try:
                         self.d[ '融資限額' ].append( int( lst[ 6 ].string.replace( ",", "" ) ) )
                     except Exception as e:
-                        print( '{} {}'.format( self.num, e ) )
+                        # print( '{} {}'.format( self.num, e ) )
                         self.d[ '融資限額' ].append( None )
 
                     try:
                         self.d[ '融資使用率' ].append( float( lst[ 7 ].string.replace( "%", "" ) ) )
                     except Exception as e:
-                        print( '{} {}'.format( self.num, e ) )
+                        # print( '{} {}'.format( self.num, e ) )
                         self.d[ '融資使用率' ].append( None )
 
                     try:
                         self.d[ '融券賣出' ].append( int( lst[ 8 ].string.replace( ",", "" ) ) )
                     except Exception as e:
-                        print( '{} {}'.format( self.num, e ) )
+                        # print( '{} {}'.format( self.num, e ) )
                         self.d[ '融券賣出' ].append( None )
 
                     try:
                         self.d[ '融券買進' ].append( int( lst[ 9 ].string.replace( ",", "" ) ) )
                     except Exception as e:
-                        print( '{} {}'.format( self.num, e ) )
+                        # print( '{} {}'.format( self.num, e ) )
                         self.d[ '融券買進' ].append( None )
 
                     try:
                         self.d[ '融券券償' ].append( int( lst[ 10 ].string.replace( ",", "" ) ) )
                     except Exception as e:
-                        print( '{} {}'.format( self.num, e ) )
+                        # print( '{} {}'.format( self.num, e ) )
                         self.d[ '融券券償' ].append( None )
 
                     try:
                         self.d[ '融券餘額' ].append( int( lst[ 11 ].string.replace( ",", "" ) ) )
                     except Exception as e:
-                        print( '{} {}'.format( self.num, e ) )
+                        # print( '{} {}'.format( self.num, e ) )
                         self.d[ '融券餘額' ].append( None )
 
                     try:
                         self.d[ '融券增減' ].append( int( lst[ 12 ].string.replace( ",", "" ) ) )
                     except Exception as e:
-                        print( '{} {}'.format( self.num, e ) )
+                        # print( '{} {}'.format( self.num, e ) )
                         self.d[ '融券增減' ].append( None )
 
                     try:
                         self.d[ '融券券資比' ].append( float( lst[ 13 ].string.replace( "%", "" ) ) )
                     except Exception as e:
-                        print( '{} {}'.format( self.num, e ) )
+                        # print( '{} {}'.format( self.num, e ) )
                         self.d[ '融券券資比' ].append( None )
 
                     try:
                         self.d[ '資券相抵' ].append( int( lst[ 14 ].string.replace( ",", "" ) ) )
                     except Exception as e:
-                        print( '{} {}'.format( self.num, e ) )
+                        # print( '{} {}'.format( self.num, e ) )
                         self.d[ '資券相抵' ].append( None )
 
                 index += 1
@@ -283,7 +284,7 @@ def main( ):
         db = dbHandle( 'localhost', 'StockDB', 'sa', '292929' )
         print( str(e) )
 
-    stock_lst = db.GetStockList( )
+    stock_lst = list( TWSE.codes.keys( ) )
 
     thread_count = 2
     thread_list = [ ]

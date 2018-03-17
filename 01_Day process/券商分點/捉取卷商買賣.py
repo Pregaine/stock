@@ -7,6 +7,7 @@ import csv
 import os
 import time
 import module.inquire.GetStockNum as GetStockNum
+import codes.codes as TWSE
 
 
 def Det_Dict_OverCnt( in_dict, compare ):
@@ -86,7 +87,8 @@ resort  = 0
 #------------------------------------------------------------------------
 
 Stock = GetStockNum.Handle( )
-stock_list = Stock.getlist( )
+# stock_list = Stock.getlist( )
+stock_list = list( TWSE.codes.keys( ) )
 
 #------------------------------------------------------------------------
 #根據股號清單,詢問網頁
