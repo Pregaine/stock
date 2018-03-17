@@ -42,7 +42,7 @@ class DB_MarginTrad:
         
             CREATE TABLE dbo.MARGINTRADING
         	(
-                stock int NOT NULL,
+                stock varchar(10) COLLATE Chinese_Taiwan_Stroke_CS_AS NOT NULL,
                 date date NOT NULL,
 
                 Financing_Buy        decimal(10, 2) NULL,
@@ -100,7 +100,7 @@ class DB_MarginTrad:
     def FindDuplicate( self, date ):
 
 
-        cmd = 'SELECT * FROM {} where stock = \'{}\' and date = \'{}\''.format( self.table, self.stock, date )
+        cmd = 'SELECT * FROM {} WHERE stock = \'{}\' and date = \'{}\''.format( self.table, self.stock, date )
 
         # print( cmd )
         # 尋找重覆資料
@@ -109,7 +109,7 @@ class DB_MarginTrad:
         print( '比對 {} Table 資料'.format( self.table ) )
 
         if ft is not None:
-            cmd = 'DELETE FROM {} where stock = \'{}\' and date = \'{}\''.format( self.table, self.stock, date )
+            cmd = 'DELETE FROM {} WHERE stock = \'{}\' and date = \'{}\''.format( self.table, self.stock, date )
             with self.cur_db.execute( cmd ):
                 print( '刪除重覆資料 {} {}'.format( self.stock, date ) )
 
@@ -157,9 +157,9 @@ def main( ):
     except Exception:
         db = DB_MarginTrad( 'localhost', 'StockDB', 'sa', 'admin' )
 
-    First_Create = True
-    db.Reset_Table( )
-    db.CreatDB( )
+    # First_Create = True
+    # db.Reset_Table( )
+    # db.CreatDB( )
 
     # 讀取資料夾
     for file in os.listdir( '.\\' ):

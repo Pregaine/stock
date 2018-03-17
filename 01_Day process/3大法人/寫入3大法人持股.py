@@ -41,7 +41,7 @@ class DB_Investors :
 
             CREATE TABLE dbo.INVESTORS 
         	(
-                stock int NOT NULL,
+                stock varchar( 10 ) COLLATE Chinese_Taiwan_Stroke_CS_AS NOT NULL,
                 date date NOT NULL,
                 
                 foreign_sell int,
@@ -54,8 +54,8 @@ class DB_Investors :
                 dealer_estimate int,
                 single_day_estimate int,
                 
-                foreign_ratio float,
-                investment_ratio float
+                foreign_ratio      decimal( 5, 2 ) NOT NULL,
+                investment_ratio decimal( 5, 2 ) NOT NULL,
                 
         	)  ON [PRIMARY]
 
@@ -64,7 +64,7 @@ class DB_Investors :
 
     def CompareDB( self ):
 
-        cmd = 'select date, foreign_sell from INVESTORS where stock = {}'.format( self.stock )
+        cmd = 'SELECT date, foreign_sell FROM INVESTORS WHERE stock = {}'.format( self.stock )
 
         ft = self.cur_db.execute( cmd ).fetchall( )
 
@@ -94,8 +94,6 @@ class DB_Investors :
     def ReadCSV( self, file ):
 
         self.df = pd.read_csv( file, sep = ',', encoding = 'utf8', false_values = 'NA', dtype = { '日期': str } )
-
-        self.df = self.df.replace( [ np.inf, -np.inf ], np.nan )
 
         #  self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%y%m%d" )
         #  print( self.df )

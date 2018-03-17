@@ -39,7 +39,7 @@ class DB_Lend:
 
             CREATE TABLE dbo.LEND 
         	(
-                stock int NOT NULL,
+                stock varchar( 10 ) COLLATE Chinese_Taiwan_Stroke_CS_AS NOT NULL,                
                 date date NOT NULL,
                 
                 lend_over int,
@@ -85,32 +85,25 @@ class DB_Lend:
             lst.append( ( stock, lend_over ) )
 
         df_db = pd.DataFrame( lst, columns = [ '股票代號', 'lend_over_FromDB' ] )
-
-        left = pd.merge( self.df, df_db, on = [ '股票代號' ], how = 'left' )
-
-        left = left[ left[ 'lend_over_FromDB' ] != left[ '借券餘額股' ] ]
-
+        left  = pd.merge( self.df, df_db, on = [ '股票代號' ], how = 'left' )
+        left  = left[ left[ 'lend_over_FromDB' ] != left[ '借券餘額股' ] ]
         del left[ 'lend_over_FromDB' ]
 
         self.df = left
 
-        # print( self.df )
-        # print( stock_num, self.src_df.iloc[ 0 ] )
-        # print( self.df.iloc[ 0 ] )
+        #  print( self.df )
+        #  print( stock_num, self.src_df.iloc[ 0 ] )
+        #  print( self.df.iloc[ 0 ] )
 
     def ReadCSV( self, file ):
 
-        self.df = pd.read_csv( file, sep = ',', encoding = 'utf8', false_values = 'NA', dtype = { '日期': str } )
-
+        self.df = pd.read_csv( file, sep = ',', encoding = 'utf8', false_values = 'NA', dtype = { '日期': str, '股票代號':str } )
         del self.df[ '證券名稱' ]
 
-        mask = ( self.df[ '股票代號' ].str.len( ) == 4 )
-
-        self.df = self.df.loc[ mask ]
-
-        self.df[ "股票代號" ] = self.df[ "股票代號" ].astype( "int" )
-
-        # print( self.df )
+        #  mask = ( self.df[ '股票代號' ].str.len( ) == 4 )
+        #  self.df = self.df.loc[ mask ]
+        #  self.df[ "股票代號" ] = self.df[ "股票代號" ].astype( "int" )
+        #  print( self.df )
 
     def WriteDB( self, First_Create ):
 

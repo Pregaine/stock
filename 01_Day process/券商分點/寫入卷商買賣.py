@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-
 import pyodbc
 import re
 import csv
 from datetime import datetime
 import glob
+import time
 
 class dbHandle:
 
@@ -41,7 +41,7 @@ class dbHandle:
                         price decimal( 8, 2 ) NOT NULL
                         最大位數8位數包含小數點前6位，小數點後2位，或小數點前8位，小數點無"""
 
-        cmd = ''' CREATE TABLE dbo.DailyTrade
+        cmd = ''' CREATE TABLE dbo.DAILYTRADE
 	(
 	stock varchar(10) COLLATE　Chinese_Taiwan_Stroke_CS_AS NOT NULL,
 	date date NOT NULL,
@@ -54,7 +54,7 @@ class dbHandle:
     COMMIT'''
 
         with self.cur_db.execute( cmd ):
-            print( 'Successfully Create DailyTrade' )
+            print( 'Successfully Create DAILYTRADE' )
 
 
     def InsertCSV2DB( self, filename ):
@@ -72,11 +72,10 @@ class dbHandle:
             buy_volume = row[ 3 ]
             sell_volume = row[ 4 ]
 
-            cmd = 'INSERT INTO DailyTrade ( stock, date, brokerage, price, buy_volume, sell_volume ) \
+            cmd = 'INSERT INTO DAILYTRADE ( stock, date, brokerage, price, buy_volume, sell_volume ) \
                    VALUES ( ?, ?, ?, ?, ?, ? )'
             try:
                 row = ( self.stock, self.date, brokerage_symbol, price, buy_volume, sell_volume )
-
                 self.cur_db.execute( cmd, row )
             except:
                 print( '寫入失敗', row )
@@ -96,7 +95,7 @@ class dbHandle:
             print( self.stock, stock_name, self.date )
 
             # stock
-            ft = self.cur_db.execute( 'SELECT stock, date FROM DailyTrade WHERE stock = ? \
+            ft = self.cur_db.execute( 'SELECT stock, date FROM DAILYTRADE WHERE stock = ? \
                                       and date = ?', ( self.stock, self.date ) ).fetchone( )
 
             if ft is None:
@@ -107,21 +106,18 @@ class dbHandle:
 
 def main( ):
 
-    start = datetime.now( )
-    server   = 'localhost'
-    database = 'StockDB'
-    username = 'sa'
-    password = "admin"
-
-    db = dbHandle( server, database, username, password )
+    try:
+        db = dbHandle( 'localhost', 'StockDB', 'sa', "admin" )
+    except Exception as e:
+        db = dbHandle( 'localhost', 'StockDB', 'sa', "292929" )
+        print( '{}'.format( e ) )
 
     db.ResetTable( 'DailyTrade' )
-
     db.CreateTable(  )
-
     db.InsertDB( )
 
-    print( datetime.now( ) - start )
-
 if __name__ == '__main__':
+
+    start_tmr = time.time( )
     main( )
+    print( 'The script took {:06.1f} minute !'.format( (time.time( ) - start_tmr) / 60 ) )

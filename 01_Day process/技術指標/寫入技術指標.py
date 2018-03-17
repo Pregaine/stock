@@ -6,6 +6,7 @@ import pandas as pd
 import re
 import numpy as np
 import glob
+import time
 
 
 
@@ -33,11 +34,10 @@ class DB_TechAnalysis:
         self.df = pd.DataFrame( )
         self.src_df = pd.DataFrame( )
 
-        self.d = { '分': 'Tech_H',
-                   '日': 'Tech_D',
-                   '周': 'Tech_W',
-                   '月': 'Tech_M'
-                }
+        self.d = { '分': 'TECH_H',
+                   '日': 'TECH_D',
+                   '周': 'TECH_W',
+                   '月': 'TECH_M' }
 
         self.datelst = [ ]
         print( "Initial Database connection..." + database )
@@ -57,8 +57,8 @@ class DB_TechAnalysis:
 
     def ResetTable( self, data ):
 
-        d = dict( 分 = 'DROP TABLE IF EXISTS Tech_H', 日 = 'DROP TABLE IF EXISTS Tech_D',
-                  周 = 'DROP TABLE IF EXISTS Tech_W', 月 = 'DROP TABLE IF EXISTS Tech_M' )
+        d = dict( 分 = 'DROP TABLE IF EXISTS TECH_H', 日 = 'DROP TABLE IF EXISTS TECH_D',
+                  周 = 'DROP TABLE IF EXISTS TECH_W', 月 = 'DROP TABLE IF EXISTS TECH_M' )
 
         # Do some setup
         with self.cur_db.execute( d[ data ] ):
@@ -67,16 +67,16 @@ class DB_TechAnalysis:
     def CreateTable( self, data ):
 
         sql_m_cmd = '''
-            CREATE TABLE dbo.Tech_M
+            CREATE TABLE dbo.TECH_M
             (
-            stock int NOT NULL,
+            stock varchar( 10 ) COLLATE Chinese_Taiwan_Stroke_CS_AS NOT NULL,
             date date NOT NULL,
             
             open_price decimal(10, 2) NULL,
             high_price decimal(10, 2) NULL,
             low_price decimal(10, 2) NULL,
             close_price decimal(10, 2) NULL,
-            volume bigint NULL,
+            volume decimal( 16, 1 ) NULL,
             
             ma3 decimal(10, 2) NULL,
             ma6 decimal(10, 2) NULL,
@@ -134,15 +134,15 @@ class DB_TechAnalysis:
         COMMIT'''
 
         sql_h_cmd = '''
-        CREATE TABLE dbo.Tech_H
+        CREATE TABLE dbo.TECH_H
         (
-        stock int NOT NULL,
+        stock varchar(10) COLLATE Chinese_Taiwan_Stroke_CS_AS NOT NULL,
         date smalldatetime NOT NULL,
         open_price decimal(10, 2) NULL,
         high_price decimal(10, 2) NULL,
         low_price decimal(10, 2) NULL,
         close_price decimal(10, 2) NULL,
-        volume bigint NULL,
+        volume decimal( 16, 1 ) NULL,
         
         ma25 decimal(10, 2) NULL,
         ma50 decimal(10, 2) NULL,
@@ -193,15 +193,15 @@ class DB_TechAnalysis:
         COMMIT'''
 
         sql_d_cmd = '''
-        CREATE TABLE dbo.Tech_D
+        CREATE TABLE dbo.TECH_D
 	    (
-	    stock int NOT NULL,
+	    stock varchar( 10 ) COLLATE Chinese_Taiwan_Stroke_CS_AS NOT NULL,
 	    date date NOT NULL,
 	    open_price decimal(10, 2) NULL,
 	    high_price decimal(10, 2) NULL,
 	    low_price decimal(10, 2) NULL,
 	    close_price decimal(10, 2) NULL,
-	    volume bigint NULL,
+	    volume decimal( 16, 1 ) NULL,
 	    
 	    d_pec decimal(10, 2) NULL,
 	    w_pec decimal(10, 2) NULL,
@@ -258,9 +258,9 @@ class DB_TechAnalysis:
         COMMIT'''
 
         sql_w_cmd = '''
-        CREATE TABLE dbo.Tech_W
+        CREATE TABLE dbo.TECH_W
         (
-        stock int NOT NULL,
+        stock varchar( 10 ) COLLATE Chinese_Taiwan_Stroke_CS_AS NOT NULL,
         date date NOT NULL,
         
         open_price decimal(10, 2) NULL,
@@ -329,70 +329,12 @@ class DB_TechAnalysis:
         with self.cur_db.execute( table_d[ data ] ):
             print( 'Successfully Create 技術指標 ' + data )
 
-    def GetStockList( self ):
-
-        cmd = '''SELECT [symbol] FROM [StockDB].[dbo].[Stocks]'''
-
-        ft = self.cur_db.execute( cmd ).fetchall( )
-
-        return [ val[ 0 ] for val in ft ]
-
-    def GetDateLst( self, value ):
-
-        datelst = [ ]
-
-        stock_id = self.GetStockID( value )
-
-        ft = self.cur_db.execute( 'SELECT date_id FROM MarginTrad WHERE stock_id = (?)', (stock_id,) ).fetchall( )
-
-        if ft is not None:
-            for val in ft:
-                value = self.cur_db.execute( 'SELECT date FROM Dates WHERE id = ( ? )', val ).fetchone( )[ 0 ]
-                datelst.append( value.strftime( '%Y%m%d' ) )
-
-        return datelst
-
-    def GetStock( self, stock_id ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 symbol FROM Stocks Where id = ?', (stock_id,) ).fetchone( )
-
-        return ft[ 0 ]
-
-    def GetDate( self, date_id ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 date FROM Dates WHERE id = ?', (date_id,) ).fetchone( )
-
-        # if ft is None:
-        #     self.cur_db.execute( 'INSERT INTO Dates ( date ) VALUES ( ? )', (val,) )
-        #     return self.cur_db.execute( 'SELECT TOP 1 id FROM Dates WHERE date = ?', (val,) ).fetchone( )[ 0 ]
-        # else:
-        #     return ft[ 0 ]
-
-        return ft[ 0 ]
-
-    def GetStockID( self, stock_symbol ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Stocks WHERE symbol = ?', (stock_symbol,) ).fetchone( )
-
-        return ft[ 0 ]
-
-    def GetDateID( self, val ):
-
-        print( '查詢日期ID', val )
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Dates WHERE date = ?', (val,) ).fetchone( )
-
-        if ft is None:
-            self.cur_db.execute( 'INSERT INTO Dates ( date ) VALUES ( ? )', (val,) )
-            return self.cur_db.execute( 'SELECT TOP 1 id FROM Dates WHERE date = ?', (val,) ).fetchone( )[ 0 ]
-        else:
-            return ft[ 0 ]
 
     def CompareDB( self, data ):
 
         # print( table_name, stock_num )
 
-        cmd = 'select date, volume from {0} where stock = {1}'.format( self.d[ data ], self.stock )
+        cmd = 'SELECT date, volume FROM {0} WHERE stock = {1}'.format( self.d[ data ], self.stock )
 
         ft = self.cur_db.execute( cmd ).fetchall( )
         lst = [ ]
@@ -420,23 +362,8 @@ class DB_TechAnalysis:
 
         self.df = left
 
-        # self.df = self.df[ ~self.df[ '日期' ].isin( lst ) ]
-        # print( data, '刪除重覆寫入', self.df )
-
-    def GetStockDF( self, value ):
-
-        datelst = [ ]
-
-        stock_id = self.GetStockID( value )
-
-        ft = self.cur_db.execute( 'SELECT date_id FROM Tdcc WHERE stock_id = (?)', (stock_id,) ).fetchall( )
-
-        if ft is not None:
-            for val in ft:
-                value = self.cur_db.execute( 'SELECT date FROM Dates WHERE id = ( ? )', val ).fetchone( )[ 0 ]
-                datelst.append( value.strftime( '%Y%m%d' ) )
-
-        return datelst
+        #  self.df = self.df[ ~self.df[ '日期' ].isin( lst ) ]
+        #  print( data, '刪除重覆寫入', self.df )
 
     def ReadCSV( self, file ):
 
@@ -496,31 +423,28 @@ class DB_TechAnalysis:
 
 def main( ):
 
-    server = 'localhost'
-    database = 'StockDB'
-    username = 'sa'
     First_Create = False
 
     try:
-        db_M = DB_TechAnalysis( server, database, username, 'admin' )
-        db_W = DB_TechAnalysis( server, database, username, 'admin' )
-        db_D = DB_TechAnalysis( server, database, username, 'admin' )
-        db_H = DB_TechAnalysis( server, database, username, 'admin' )
+        db_M = DB_TechAnalysis( 'localhost', 'StockDB', 'sa', 'admin' )
+        db_W = DB_TechAnalysis( 'localhost', 'StockDB', 'sa', 'admin' )
+        db_D = DB_TechAnalysis( 'localhost', 'StockDB', 'sa', 'admin' )
+        db_H = DB_TechAnalysis( 'localhost', 'StockDB', 'sa', 'admin' )
     except Exception as e:
         print( '{}'.format( e ) )
-        db_M = DB_TechAnalysis( server, database, username, '292929' )
-        db_W = DB_TechAnalysis( server, database, username, '292929' )
-        db_D = DB_TechAnalysis( server, database, username, '292929' )
-        db_H = DB_TechAnalysis( server, database, username, '292929' )
+        db_M = DB_TechAnalysis( 'localhost', 'StockDB', 'sa', '292929' )
+        db_W = DB_TechAnalysis( 'localhost', 'StockDB', 'sa', '292929' )
+        db_D = DB_TechAnalysis( 'localhost', 'StockDB', 'sa', '292929' )
+        db_H = DB_TechAnalysis( 'localhost', 'StockDB', 'sa', '292929' )
 
-    # 移除表格
+    #  移除表格
     # First_Create = True
     # db_M.ResetTable( '月' )
     # db_W.ResetTable( '周' )
     # db_D.ResetTable( '日' )
     # db_H.ResetTable( '分' )
 
-    # 建立資料表
+    #  建立資料表
     # db_M.CreateTable( '月' )
     # db_W.CreateTable( '周' )
     # db_D.CreateTable( '日' )
@@ -541,7 +465,6 @@ def main( ):
         data = file[ -10:-9 ]
 
         if data in stock_d.keys( ):
-        # if data == '日':
 
             Obj = stock_d[ data ][ 0 ]
             path = num + stock_d[ data ][ 1 ]
@@ -562,10 +485,9 @@ def main( ):
         else:
             print( '讀取錯誤 {}'.format( data ) )
 
-    
 
 if __name__ == '__main__':
 
-    start_tmr = datetime.now( )
+    start_tmr = time.time( )
     main( )
-    print( datetime.now( ) - start_tmr )
+    print( '{:04.1f}'.format( ( time.time( ) - start_tmr ) / 60 ) )
