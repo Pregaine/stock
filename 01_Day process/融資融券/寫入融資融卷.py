@@ -42,7 +42,7 @@ class DB_MarginTrad:
         
             CREATE TABLE dbo.MARGIN
         	(
-                stock varchar(10) COLLATE Chinese_Taiwan_Stroke_CS_AS NOT NULL,
+                stock varchar( 10 ) COLLATE Chinese_Taiwan_Stroke_CS_AS NOT NULL,
                 date date NOT NULL,
 
                 Financing_Buy        decimal(10, 0) NULL,
@@ -69,7 +69,7 @@ class DB_MarginTrad:
 
     def CompareDB( self ):
 
-        cmd = 'SELECT date,  Financing_Buy FROM MARGIN WHERE STOCK = {}'.format( self.stock )
+        cmd = 'SELECT date,  Financing_Buy FROM MARGIN WHERE stock = \'{}\''.format( self.stock )
 
         ft = self.cur_db.execute( cmd ).fetchall( )
 
@@ -106,6 +106,7 @@ class DB_MarginTrad:
         ft = self.cur_db.execute( cmd ).fetchone( )
 
         print( '比對 {} Table 資料'.format( self.table ) )
+        # print( ft )
 
         if ft is not None:
             cmd = 'DELETE FROM {} WHERE stock = \'{}\' and date = \'{}\''.format( self.table, self.stock, date )
@@ -162,11 +163,13 @@ def main( ):
     # 讀取資料夾
     for file in os.listdir( '.\\' ):
 
+        # 0050_融資融卷
+        # if file.endswith( "0050_融資融卷.csv" ) != 1:
         if file.endswith( "_融資融卷.csv" ) != 1:
             continue
 
-        db.stock = file[ 0:4 ]
-        print( '{}'.format(db.stock ) )
+        db.stock = file.replace( "_融資融卷.csv", '' )
+        print( 'stock {} file {}'.format( db.stock, file ) )
 
         db.ReadCSV( file )
         db.CompareDB( )

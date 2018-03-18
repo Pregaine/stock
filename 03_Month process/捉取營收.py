@@ -23,28 +23,23 @@ class Revenue:
     def GetUrl_Lst( self ):
 
         for year in range( 99, self.end_year + 1 ):
-
             for month in range( 1, 13 ):
 
                 pyROCYear = str( year )
-
                 self.url_lst.append( 'http://mops.twse.com.tw/nas/t21/sii/t21sc03_' \
                                      + pyROCYear + '_' + str( month ) + '_0.html' )
 
-                self.ym_lst.append( str( year + 1911 ) + '{0:0>2}'.format( month ) )
+                self.ym_lst.append( '{0}{1:0>2}'.format( year + 1911, month ) )
 
         # print( self.ym_lst )
 
     def GetRevenue( self ):
 
         index = 0
-
         end_file_lst = list( )
-
         end_file_lst.append( self.path + datetime.now( ).strftime( '%Y%m' ) + '.csv' )
 
         last_month = datetime.now( ) - timedelta( days = 30 )
-
         end_file_lst.append( self.path + last_month.strftime( '%Y%m' ) + '.csv' )
 
         print( '結束日期', end_file_lst )
@@ -61,14 +56,13 @@ class Revenue:
                     continue
 
             headers = {
-                'user-agent': "Chrome/61.0.3163.100 Safari/537.36",
+                'user-agent': "Chrome/61.0.3163.100",
                 'upgrade-insecure-requests': "1",
                 'accept': "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
                 'accept-encoding': "gzip, deflate",
                 'accept-language': "zh-TW,zh-CN;q=0.8,zh;q=0.6,en-US;q=0.4,en;q=0.2",
                 'cookie': "_ga=GA1.3.1953932169.1504347589; _ga=GA1.3.1953932169.1504347589",
                 'cache-control': "no-cache",
-                'postman-token': "254ec95e-d1e3-55be-e8c5-a9a7f3bef43e"
             }
 
             data = requests.request( "GET", url, headers = headers )
@@ -114,34 +108,21 @@ class Revenue:
             df = pd.read_csv( file, sep = ',', encoding = 'utf8', false_values = 'NA', dtype = { '日期': str } )
 
             df.drop_duplicates( [ '公司名稱' ], keep = 'last', inplace = True )
-
             df.to_csv( file, sep = ',', encoding = 'utf-8' )
-
             index += 1
 
 def main( ):
 
-    start_tmr = datetime.now( )
+    RevenueObj = Revenue( )
 
     try:
-        RevenueObj = Revenue( )
-
         RevenueObj.GetUrl_Lst( )
-
         RevenueObj.GetRevenue( )
     except:
         print( "網頁未存在" )
 
-    print( datetime.now( ) - start_tmr )
-
-# 判斷檔案
-
-# 補齊未捉檔案
-
-# 列印執行時間
-
-# 結束
-
 if __name__ == '__main__':
 
+    start_tmr = datetime.now( )
     main( )
+    print( '{} Sec'.format( datetime.now( ) - start_tmr )  )
