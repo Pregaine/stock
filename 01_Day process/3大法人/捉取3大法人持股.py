@@ -228,7 +228,6 @@ def GetFile( *lst ):
             investors.SaveCSV( )
             print( '{} {} ~ {}'.format( stock, investors.bdate, investors.edate ) )
 
-
 def main( ):
 
     try:

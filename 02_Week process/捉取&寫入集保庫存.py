@@ -76,7 +76,7 @@ def main( ):
     try:
         DB_OBJ = DB.Handle( 'localhost', 'StockDB', 'TDCC',  'sa', 'admin' )
     except Exception as e:
-        DB_OBJ = DB.Handle( 'localhost', 'StockDB', 'TDCC', 'sa', 'admin' )
+        DB_OBJ = DB.Handle( 'localhost', 'StockDB', 'TDCC', 'sa', '292929' )
 
     # DB_OBJ.ResetTable( 'TDCC' )
     # DB_OBJ.CreateTable_TDCC( )

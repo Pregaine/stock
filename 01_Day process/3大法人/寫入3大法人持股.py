@@ -44,18 +44,18 @@ class DB_Investors :
                 stock varchar( 10 ) COLLATE Chinese_Taiwan_Stroke_CS_AS NOT NULL,
                 date date NOT NULL,
                 
-                foreign_sell int,
-                investment_sell int,
-                dealer_sell int,
-                single_day_sell int, 
+                foreign_sell int NULL,
+                investment_sell int NULL,
+                dealer_sell int NULL,
+                single_day_sell int NULL, 
                  
-                foreign_estimate int,
-                investment_estimate int,
-                dealer_estimate int,
-                single_day_estimate int,
+                foreign_estimate int NULL,
+                investment_estimate int NULL,
+                dealer_estimate int NULL,
+                single_day_estimate int NULL,
                 
-                foreign_ratio      decimal( 5, 2 ) NOT NULL,
-                investment_ratio decimal( 5, 2 ) NOT NULL,
+                foreign_ratio      decimal( 5, 2 ) NULL,
+                investment_ratio decimal( 5, 2 ) NULL,
                 
         	)  ON [PRIMARY]
 
@@ -113,6 +113,7 @@ class DB_Investors :
             val[ 0 ] = self.stock
             dt = datetime.strptime( val[ 1 ], '%y%m%d' )
             val[ 1 ] = dt.strftime( "%y-%m-%d" )
+
             var_string = ', '.join( '?' * ( len( val )  ) )
 
             query_string = 'INSERT INTO INVESTORS VALUES ( {} );'.format( var_string )
