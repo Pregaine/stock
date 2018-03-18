@@ -139,33 +139,26 @@ class Handle:
     def GetAllData(self, field, condition ):
 
         lst = [ ]
-
         cmd = "SELECT {} FROM {} WHERE {}".format( field, self.table, condition )
-
         ft = self.cur_db.execute( cmd ).fetchall( )
 
         if ft is not None:
             for val in ft:
                 lst.append( val[ 0 ].strftime( '%Y%m%d' ) )
-
         return lst
 
     def WriteData( self, data ):
 
         var_string = ', '.join( '?' * ( len( data )  ) )
-
         cmd = 'INSERT INTO {} VALUES ( {} )'.format( self.table, var_string )
 
         with self.cur_db.execute( cmd, data ):
-
             self.stock = data[ 0 ]
             self.date = data[ 1 ]
-            self.con_db.commit( )
-
+            self.cur_db.commit( )
             print( '寫入 {} 資料表 {} {}'.format( self.table, self.stock, self.date ) )
 
 if __name__ == '__main__':
-
     pass
 
 

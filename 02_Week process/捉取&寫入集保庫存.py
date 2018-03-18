@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup as BS
 import module.db.stock_db as DB
 import module.inquire.GetStockNum as GetStockNum
 import pandas as pd
+import codes.codes as TWSE
 
 class TDCC_Handle:
 
@@ -72,71 +73,51 @@ class TDCC_Handle:
 
 def main( ):
 
-    server   = 'localhost'
-    database = 'StockDB'
-    username = 'sa'
-    password = 'admin'
+    try:
+        DB_OBJ = DB.Handle( 'localhost', 'StockDB', 'TDCC',  'sa', 'admin' )
+    except Exception as e:
+        DB_OBJ = DB.Handle( 'localhost', 'StockDB', 'TDCC', 'sa', 'admin' )
 
-    DB_OBJ = DB.Handle( server, database, 'TDCC', username, password )
-
-    # 刪除集保庫存資料表
     # DB_OBJ.ResetTable( 'TDCC' )
-
-    # 建立集保庫存資料表
     # DB_OBJ.CreateTable_TDCC( )
 
     TDCC_OBJ = TDCC_Handle( )
 
-    # 時間記錄
-    start_tmr = datetime.now( )
-
-    # 查詢股號
-    Stock_OBJ = GetStockNum.Handle( )
-
-    stock_lst = Stock_OBJ.getlist( )
+    stock_lst = list( TWSE.codes.keys() )
+    # stock_lst = [ '0050' ]
 
     # 查詢網路集保庫存日期
     date_lst = TDCC_OBJ.qrerry_date( )
 
-    # 查詢集保庫存資料表股號擁有日期
-    # print( stock_lst[ 0 ], type( stock_lst[ 0 ] ) )
-
     while len( stock_lst ) != 0:
 
         stock = stock_lst.pop( 0 )
-
-        # stock = '1101'
-        stock_db_date_lst = DB_OBJ.GetAllData( 'date', "stock = '{}'".format( stock ) )
-
-        print( stock, '資料庫日期筆數', len( stock_db_date_lst ) )
-
-        # 刪除已抓捉日期
+        stock_db_date_lst = DB_OBJ.GetAllData( 'date', "stock = \'{}\' ".format( stock ) )
         stock_db_date_lst = list( set( date_lst ) - set( stock_db_date_lst ) )
+
+        print( '{} 資料庫日期筆數 {}'.format( stock, len( stock_db_date_lst ) ) )
 
         while len( stock_db_date_lst ) != 0:
 
             date = stock_db_date_lst.pop( 0 )
-
-            # try:
-            # 捉取資料根據日期
+            #  捉取資料根據日期
             df = TDCC_OBJ.querry_stock( date, stock )
 
-            if df is None: continue
+            if df is None:
+                continue
 
             data = df.iloc[ 0 ].tolist( )
-
             data = data[ 0 : 2 ] + [ float( i ) for i in data[ 2: ] ]
 
             try:
-                # dataframe 寫入資料庫
                 DB_OBJ.WriteData( data )
-
             except:
                 print( stock, '查詢無', date, '資料'  )
 
-    # 結束
-    print( "end" )
-    print( datetime.now( ) - start_tmr )
+
 
 if __name__ == '__main__':
+
+    start_tmr = datetime.now( )
     main( )
+    print( datetime.now( ) - start_tmr )

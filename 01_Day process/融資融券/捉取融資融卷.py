@@ -89,7 +89,6 @@ class Investors:
             'accept-language': "zh-TW,zh-CN;q=0.8,zh;q=0.6,en-US;q=0.4,en;q=0.2",
             'cookie': "ASPSESSIONIDQQQSASTB=GCPJMEJCPAHAOFPAABEDPEDI; _ga=GA1.3.412065940.1502115769; _gid=GA1.3.1224767635.1505026283",
             'cache-control': "no-cache",
-            'postman-token': "e944c758-3182-38ba-a4b8-e7446a7a3ac1"
         }
 
         response = requests.request( "GET", url, headers = headers, params = querystring )

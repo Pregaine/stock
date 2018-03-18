@@ -17,7 +17,7 @@ class DB_MarginTrad:
         self.df = pd.DataFrame( )
         self.src_df = pd.DataFrame( )
         self.stock = ''
-        self.table = 'MARGINTRADING'
+        self.table = 'MARGIN'
 
         self.datelst = [ ]
         print( "Initial Database connection..." + database )
@@ -33,33 +33,33 @@ class DB_MarginTrad:
 
     def Reset_Table( self ):
         # Do some setup
-        with self.cur_db.execute( '''DROP TABLE IF EXISTS MARGINTRADING;''' ):
-            print( 'Successfuly Deleter MARGINTRADING Table' )
+        with self.cur_db.execute( '''DROP TABLE IF EXISTS MARGIN;''' ):
+            print( 'Successfuly Deleter MARGIN Table' )
 
     def CreatDB(self):
 
         with self.cur_db.execute( '''
         
-            CREATE TABLE dbo.MARGINTRADING
+            CREATE TABLE dbo.MARGIN
         	(
                 stock varchar(10) COLLATE Chinese_Taiwan_Stroke_CS_AS NOT NULL,
                 date date NOT NULL,
 
-                Financing_Buy        decimal(10, 2) NULL,
-                Financing_Sell        decimal(10, 2) NULL,
-                Financing_PayOff    decimal(10, 2) NULL,
-                Financing_Over       decimal(10, 2) NULL,
-                Financing_Increase  decimal(10, 2) NULL,
-                Financing_Limit      decimal(10, 2) NULL,
+                Financing_Buy        decimal(10, 0) NULL,
+                Financing_Sell        decimal(10, 0) NULL,
+                Financing_PayOff    decimal(10, 0) NULL,
+                Financing_Over       decimal(10, 0) NULL,
+                Financing_Increase  decimal(10, 0) NULL,
+                Financing_Limit      decimal(10, 0) NULL,
                 Financing_Use        decimal(10, 2) NULL,
                 
-                Margin_Sell           decimal(10, 2) NULL,
-                Margin_Buy           decimal(10, 2) NULL,
-                Margin_PayOff       decimal(10, 2) NULL,
-                Margin_Over          decimal(10, 2) NULL,
-                Margin_Increase     decimal(10, 2) NULL,
+                Margin_Sell           decimal(10, 0) NULL,
+                Margin_Buy           decimal(10, 0) NULL,
+                Margin_PayOff       decimal(10, 0) NULL,
+                Margin_Over          decimal(10, 0) NULL,
+                Margin_Increase     decimal(10, 0) NULL,
                 Margin_Ratio         decimal(10, 2) NULL,
-                Margin_Offset        decimal(10, 2) NULL,
+                Margin_Offset        decimal(10, 0) NULL,
                               
         	)  ON [PRIMARY]
 
@@ -69,7 +69,7 @@ class DB_MarginTrad:
 
     def CompareDB( self ):
 
-        cmd = 'SELECT date,  Financing_Buy FROM MARGINTRADING WHERE STOCK = {}'.format( self.stock )
+        cmd = 'SELECT date,  Financing_Buy FROM MARGIN WHERE STOCK = {}'.format( self.stock )
 
         ft = self.cur_db.execute( cmd ).fetchall( )
 
@@ -99,7 +99,6 @@ class DB_MarginTrad:
 
     def FindDuplicate( self, date ):
 
-
         cmd = 'SELECT * FROM {} WHERE stock = \'{}\' and date = \'{}\''.format( self.table, self.stock, date )
 
         # print( cmd )
@@ -116,7 +115,6 @@ class DB_MarginTrad:
     def ReadCSV( self, path ):
 
         self.df = pd.read_csv( path, sep = ',', encoding = 'utf8', false_values = 'NA', dtype = { '日期': str } )
-
         self.df = self.df.replace( [ np.inf, -np.inf ], np.nan )
 
         # self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%y%m%d" )
@@ -171,11 +169,8 @@ def main( ):
         print( '{}'.format(db.stock ) )
 
         db.ReadCSV( file )
-
         db.CompareDB( )
-
         db.WriteDB( First_Create )
-
         db.cur_db.commit( )
 
 
