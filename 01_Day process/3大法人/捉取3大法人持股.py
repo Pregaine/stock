@@ -180,7 +180,7 @@ class Investors:
             self.df.drop_duplicates( [ '日期' ], keep = 'last', inplace = True )
             self.df.sort_values( by = '日期',  ascending=False, inplace = True )
             self.df.reset_index( drop = True, inplace = True )
-        except FileNotFoundError as e:
+        except Exception as e:
             print( '{:<20}第1次捉取'.format( self.path ) )
 
 
@@ -209,7 +209,7 @@ def CompareFileCreatetime( path, hour = 12 ):
             print( '{:<20}更新時間不超過{}hour'.format( path, hour ) )
             return False
 
-    except FileNotFoundError:
+    except Exception:
         pass
 
     return True
