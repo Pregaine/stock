@@ -27,8 +27,8 @@ class LendOver:
         url = "http://www.twse.com.tw/exchangeReport/TWT72U"
 
         now = datetime.now( )
-        key = "15208581265{:>2}".format( now.second + 1 )
-        print( key )
+        key = "15208581265{:0>2}".format( now.second + 1 )
+        # print( key )
 
         querystring = { "response": "json", "date": date_str, "selectType": "SLBNLB", "_": key }
 
@@ -37,9 +37,11 @@ class LendOver:
             'accept': "application/json, text/javascript, */*; q=0.01", 'x-requested-with': "XMLHttpRequest",
             'user-agent': "Chrome/64.0.3282.186 Safari/537.36",
             'Referer': "http://www.twse.com.tw/zh/page/trading/exchange/TWT72U.html",
-            'Accept-Encoding': "gzip, deflate", 'Accept-Language': "en-US",
+            'Accept-Encoding': "gzip, deflate",
+            'Accept-Language': "en-US",
             'cookie': "_ga=GA1.3.1838061013.1520518370; _gid=GA1.3.1972994029.1520761897; JSESSIONID=627854663D0CFAB13435F0FA8680B206; _ga=GA1.3.1838061013.1520518370; _gid=GA1.3.1972994029.1520761897; JSESSIONID=FFC6E200FF9907F89C5EEBCDD9DBA2CB; _gat=1",
-            'cache-control': "max-age=0", 'Upgrade-Insecure-Requests':1 }
+            'cache-control': "max-age=0",
+            'Upgrade-Insecure-Requests': '1' }
 
         # set_new_ip( )
         # session = get_tor_session( )
@@ -48,14 +50,14 @@ class LendOver:
         except Exception as e:
             print( '{}'.format( e ) )
 
-        print( response.text )
+        # print( response.text )
         self.obj = json.loads( response.text )
 
         if response.text == "{\"stat\":\"很抱歉，沒有符合條件的資料!\"}":
             print(  '很抱歉，沒有符合條件的資料 證交所借券系統與證商/證金營業處所借券餘額合計表 {}'.format( date_str ) )
             return True
 
-        print( response.text )
+        # print( response.text )
 
         self.obj = json.loads( response.text )
         self.date = self.obj[ 'date' ]
@@ -103,7 +105,7 @@ class Lend:
         print( 'Lend     Get Date {} 信用額度總量管制餘額表'.format( date_str ) )
 
         now = datetime.now( )
-        print( now.second )
+        # print( now.second )
 
         url = "http://www.twse.com.tw/exchangeReport/TWT93U"
         querystring = { "response": "json", "date": date_str, "_": "15208561963{}".format( now.second ) }
@@ -111,9 +113,10 @@ class Lend:
         headers = {
             'Host': 'www.twse.com.tw',
             'accept': "application/json, text/javascript, */*; q=0.01", 'x-requested-with': "XMLHttpRequest",
-            'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.186 Safari/537.36",
+            'user-agent': "Chrome/64.0.3282.186 Safari/537.36",
             'referer': "http://www.twse.com.tw/zh/page/trading/exchange/TWT93U.html",
-            'accept-encoding': "gzip, deflate", 'accept-language': "zh-TW",
+            'accept-encoding': "gzip, deflate",
+            'accept-language': "zh-TW",
             'cookie': "_ga=GA1.3.1838061013.1520518370; _gid=GA1.3.1972994029.1520761897; JSESSIONID=627854663D0CFAB13435F0FA8680B206",
             'cache-control': "no-cache" }
 
@@ -219,20 +222,20 @@ def GetFile( BdateObj, EdateObj ):
             continue
 
         # 借卷餘額
-        # LendOverObj = LendOver(  )
-        # if LendOverObj.GetData( date ):
-        #     continue
-        # time.sleep( 5 )
-        #
-        # # 借卷
-        # LendObj = Lend( )
-        # LendObj.GetDate( date )
-        # time.sleep( 5 )
-        #
-        # # 合併
-        # result = pd.merge( LendOverObj.df, LendObj.df, on = '股票代號' )
-        # SaveCSV( result, file_name )
-        # print( '{} {} 捉取成功'.format( date, BdateObj.weekday( ) ) )
+        LendOverObj = LendOver(  )
+        if LendOverObj.GetData( date ):
+            continue
+        time.sleep( 5 )
+
+        # 借卷
+        LendObj = Lend( )
+        LendObj.GetDate( date )
+        time.sleep( 5 )
+
+        # 合併
+        result = pd.merge( LendOverObj.df, LendObj.df, on = '股票代號' )
+        SaveCSV( result, file_name )
+        print( '{} {} 捉取成功'.format( date, BdateObj.weekday( ) ) )
 
 def main( ):
 
@@ -247,7 +250,5 @@ def main( ):
 if __name__ == '__main__':
 
     start_tmr = time.time( )
-
     main( )
-
-    print( 'The script took {:06.2f} minute !'.format( (time.time( ) - start_tmr ) / 60 ) )
+    print( 'The script took {:06.2f} minute !'.format( (time.time( ) - start_tmr ) ) )

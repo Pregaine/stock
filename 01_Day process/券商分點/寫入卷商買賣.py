@@ -10,6 +10,7 @@ class dbHandle:
 
     def __init__( self, server, database, username, password ):
 
+        cmd = """SET LANGUAGE us_english; set dateformat ymd;"""
         print( "Initial Database connection..." + database )
         self.con_db = pyodbc.connect( 'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + server +
                                       ';PORT=1443;DATABASE=' + database +
@@ -17,12 +18,10 @@ class dbHandle:
                                       ';PWD=' + password )
 
         self.cur_db = self.con_db.cursor( )
-
         self.date = ''
-
         self.stock = None
-
         self.con_db.commit( )
+        self.cur_db.execute( cmd )
 
     def ResetTable( self, table ):
 
@@ -41,7 +40,7 @@ class dbHandle:
                         price decimal( 8, 2 ) NOT NULL
                         最大位數8位數包含小數點前6位，小數點後2位，或小數點前8位，小數點無"""
 
-        cmd = ''' CREATE TABLE dbo.DAILYTRADE
+        cmd = ''' CREATE TABLE dbo.BROKERAGE
 	(
 	stock varchar(10) COLLATE　Chinese_Taiwan_Stroke_CS_AS NOT NULL,
 	date date NOT NULL,
@@ -54,7 +53,7 @@ class dbHandle:
     COMMIT'''
 
         with self.cur_db.execute( cmd ):
-            print( 'Successfully Create DAILYTRADE' )
+            print( 'Successfully Create BROKERAGE' )
 
 
     def InsertCSV2DB( self, filename ):
@@ -67,12 +66,11 @@ class dbHandle:
 
             brokerage_symbol = row[ 1 ][ 0:4 ]
             # brokerage_name = row[ 1 ][ 4:len( row[ 1 ] ) ].replace( ' ', '' ).replace( '\u3000', '' )
-            price = row[ 2 ]
-
-            buy_volume = row[ 3 ]
+            price       = row[ 2 ]
+            buy_volume  = row[ 3 ]
             sell_volume = row[ 4 ]
 
-            cmd = 'INSERT INTO DAILYTRADE ( stock, date, brokerage, price, buy_volume, sell_volume ) \
+            cmd = 'INSERT INTO BROKERAGE ( stock, date, brokerage, price, buy_volume, sell_volume ) \
                    VALUES ( ?, ?, ?, ?, ?, ? )'
             try:
                 row = ( self.stock, self.date, brokerage_symbol, price, buy_volume, sell_volume )
@@ -94,9 +92,9 @@ class dbHandle:
 
             print( self.stock, stock_name, self.date )
 
-            # stock
-            ft = self.cur_db.execute( 'SELECT stock, date FROM DAILYTRADE WHERE stock = ? \
-                                      and date = ?', ( self.stock, self.date ) ).fetchone( )
+            cmd = 'SELECT stock, date FROM BROKERAGE WHERE stock = \'{}\' and date = \'{}\''.format( self.stock, self.date )
+
+            ft = self.cur_db.execute( cmd ).fetchone( )
 
             if ft is None:
                 self.InsertCSV2DB( filename )
@@ -112,7 +110,7 @@ def main( ):
         db = dbHandle( 'localhost', 'StockDB', 'sa', "292929" )
         print( '{}'.format( e ) )
 
-    db.ResetTable( 'DailyTrade' )
+    db.ResetTable( 'BROKERAGE' )
     db.CreateTable(  )
     db.InsertDB( )
 

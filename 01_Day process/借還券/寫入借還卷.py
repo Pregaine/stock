@@ -131,8 +131,6 @@ class DB_Lend:
             with self.cur_db.execute( query_string, val ):
                 print( '寫入資料庫 {} {}'.format( val[ 0 ], val[ 1 ] ) )
 
-
-
 def main( ):
 
     try:
@@ -143,9 +141,9 @@ def main( ):
 
     First_Create = False
 
-    # First_Create = True
-    # db.Reset_Table( )
-    # db.CreatDB( )
+    First_Create = True
+    db.Reset_Table( )
+    db.CreatDB( )
 
     # 讀取資料夾
     for file in os.listdir( '.\\' ):
@@ -167,4 +165,4 @@ if __name__ == '__main__':
 
     start_tmr = time.time( )
     main( )
-    print( 'The script took {:06.1f} minute !'.format( time.time( ) - start_tmr ) )
+    print( 'The script took {:04.1f} minute !'.format( ( time.time( ) - start_tmr ) / 60 ) )

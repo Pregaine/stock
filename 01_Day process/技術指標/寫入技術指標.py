@@ -490,4 +490,4 @@ if __name__ == '__main__':
 
     start_tmr = time.time( )
     main( )
-    print( '{:04.1f}'.format( ( time.time( ) - start_tmr ) / 60 ) )
+    print( '{:04.1f}'.format( ( time.time( ) - start_tmr ) ) )

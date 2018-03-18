@@ -10,7 +10,7 @@ import math
 import time
 from bs4 import BeautifulSoup as BS
 import os
-import time
+import codes.codes as TWSE
 
 class dbHandle( ):
 
@@ -28,6 +28,7 @@ class dbHandle( ):
         self.con_db.commit( )
 
     def GetStockList( self ):
+
         cmd = '''SELECT [symbol] FROM [StockDB].[dbo].[Stocks]'''
 
         ft = self.cur_db.execute( cmd ).fetchall( )
@@ -61,22 +62,18 @@ class Technical_Indicator:
     def GetDF( self ):
 
         #  範例 http://jsinfo.wls.com.tw/Z/ZC/ZCW/CZKC1.djbcd?a=2889&b=D&c=1440
-        url = "http://jsinfo.wls.com.tw/z/BCD/czkc1.djbcd"
+        # url = "http://jsinfo.wls.com.tw/z/BCD/czkc1.djbcd"
+        url = "http://5850web.moneydj.com/z/BCD/czkc1.djbcd"
 
         querystring = { "a": self.number, "b": self.type, "c": self.days, "E": "1", "ver": "5" }
 
         headers = {
-            'if-modified-since': "Wed, 15 Nov 1995 04:58:08 GMT",
-            'user-agent': "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.101",
-            'content-type': "text/html;charset=big5",
-            'accept': "*/*",
-            'referer': "http://jsinfo.wls.com.tw/z/zc/zcw/zcw1_2330.djhtm",
+            'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/64.0.3282.186 Safari/537.36",
+            'content-type': "text/html;charset=big5", 'accept': "*/*",
+            'referer': "http://5850web.moneydj.com/z/zc/zcw/zcw1.DJHTM?A={}".format( self.number ),
             'accept-encoding': "gzip, deflate",
-            'accept-language': "zh-TW,zh-CN;q=0.8,zh;q=0.6,en-US;q=0.4,en;q=0.2",
-            'cookie': "_ga=GA1.3.732915069.1501683922; _gid=GA1.3.1336941621.1503823694; _ga=GA1.3.732915069.1501683922; _gid=GA1.3.1336941621.1503823694; _gat=1",
-            'cache-control': "no-cache",
-            'postman-token': "56cb1330-d546-27a3-01bb-6deab90ed563"
-        }
+            'accept-language': "zh-TW,zh-CN;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
+            'cache-control': "no-cache", }
 
         response = requests.request( "GET", url, headers = headers, params = querystring )
 
@@ -343,7 +340,6 @@ class Technical_Indicator:
         return False
 
 
-
     def SaveCSV( self ):
 
         # cols = [ '券商', '日期', '買進均價', '賣出均價', '買進張數', '賣出張數', '買賣超張數', '買賣超股數', '買進價格*張數', '賣出價格*張數',
@@ -351,6 +347,7 @@ class Technical_Indicator:
         # self.df_d.reindex( columns = cols )
 
         self.df = self.df.replace( [ np.inf, -np.inf ], np.nan )
+        self.df = self.df.round( decimals =  2 )
 
         if self.type is not '60':
             self.df.to_csv( self.path, sep = ',', encoding = 'utf-8', date_format='%y%m%d' )
@@ -435,16 +432,19 @@ def _Get60Minute( obj ):
 
 def DetStockIsNotExist( number ):
 
-    url = "http://jsinfo.wls.com.tw/z/zc/zcw/zcw1_{}.djhtm".format( number )
+    url = "http://5850web.moneydj.com/z/zc/zcw/zcw1.DJHTM"
 
-    headers = { 'upgrade-insecure-requests': "1",
-        'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.186 Safari/537.36",
+    querystring = { "A": number }
+
+    headers = {
+        'upgrade-insecure-requests': "1",
+        'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/64.0.3282.186",
         'accept': "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-        'accept-encoding': "gzip, deflate", 'accept-language': "zh-TW,zh-CN;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
-        'cookie': "_ga=GA1.3.1434115831.1520137318; _gid=GA1.3.2080379860.1520137318; _uetsid=_uetf7314cc5",
-        'cache-control': "no-cache", 'postman-token': "123a262f-8920-74b0-c4da-b2e950cc49c5" }
+        'accept-encoding': "gzip, deflate",
+        'accept-language': "zh-TW,zh-CN;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
+        'cache-control': "no-cache", }
 
-    response = requests.request( "GET", url, headers = headers )
+    response = requests.request( "GET", url, headers = headers, params = querystring )
 
     soup = BS( response.text, "html.parser" )
 
@@ -540,29 +540,23 @@ def CompareFileCreatetime( path, hour = 12 ):
 
     return True
 
-
 def main( ):
-    """國票證券 技術分析爬蟲"""
 
-    server   = 'localhost'
-    database = 'StockDB'
-    username = 'sa'
-    password = 'admin'
-
-    try:
-        db = dbHandle( server, database, username, password )
-    except Exception as e:
-        print( str(e) )
-        db = dbHandle(server, database, username, '292929' )
-
-    stock_lst = db.GetStockList( )
-
-
-    print( '股票開始比對', len( stock_lst ), '數量' )
-
+    """MoneyDj http://5850web.moneydj.com/z/zc/zcw/zcw1.DJHTM?A=2354"""
     """股票已下市"""
     # stock_lst = [ '3559', '0050', '0058', '0053' ]
     # stock_lst = [ '0050', '3312' ]
+
+    try:
+        db = dbHandle( 'localhost', 'StockDB', 'sa', 'admin' )
+    except Exception as e:
+        print( str(e) )
+        db = dbHandle( 'localhost', 'StockDB', 'sa', '292929' )
+
+    # stock_lst = db.GetStockList( )
+    stock_lst = list( TWSE.codes.keys( ) )
+
+    print( '股票開始比對', len( stock_lst ), '數量' )
 
     thread_count = 2
     thread_list = [ ]
