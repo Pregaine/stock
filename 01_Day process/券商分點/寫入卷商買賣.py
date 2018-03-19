@@ -45,6 +45,7 @@ class dbHandle:
 	stock varchar(10) COLLATE　Chinese_Taiwan_Stroke_CS_AS NOT NULL,
 	date date NOT NULL,
 	brokerage char(4) COLLATE　Chinese_Taiwan_Stroke_CS_AS NOT NULL,
+	brokerage_name varchar(10) COLLATE　Chinese_Taiwan_Stroke_CS_AS NOT NULL,
 	price decimal( 8, 2 ) NOT NULL,
 	buy_volume decimal( 16, 0 ) NULL,
 	sell_volume decimal( 16, 0 ) NULL
@@ -65,15 +66,15 @@ class dbHandle:
                 return
 
             brokerage_symbol = row[ 1 ][ 0:4 ]
-            # brokerage_name = row[ 1 ][ 4:len( row[ 1 ] ) ].replace( ' ', '' ).replace( '\u3000', '' )
+            brokerage_name = row[ 1 ][ 4:len( row[ 1 ] ) ].replace( ' ', '' ).replace( '\u3000', '' )
             price       = row[ 2 ]
             buy_volume  = row[ 3 ]
             sell_volume = row[ 4 ]
 
-            cmd = 'INSERT INTO BROKERAGE ( stock, date, brokerage, price, buy_volume, sell_volume ) \
-                   VALUES ( ?, ?, ?, ?, ?, ? )'
+            cmd = 'INSERT INTO BROKERAGE ( stock, date, brokerage, brokerage_name, price, buy_volume, sell_volume ) \
+                   VALUES ( ?, ?, ?, ?, ?, ?, ? )'
             try:
-                row = ( self.stock, self.date, brokerage_symbol, price, buy_volume, sell_volume )
+                row = ( self.stock, self.date, brokerage_symbol, brokerage_name, price, buy_volume, sell_volume )
                 self.cur_db.execute( cmd, row )
             except:
                 print( '寫入失敗', row )
