@@ -9,6 +9,7 @@ import pandas as pd
 class DB_Revenue:
     def __init__( self, server, database, username, password ):
 
+        cmd = """SET LANGUAGE us_english; set dateformat ymd;"""
         self.df = pd.DataFrame( )
         self.src_df = pd.DataFrame( )
 
@@ -22,57 +23,37 @@ class DB_Revenue:
 
         self.cur_db = self.con_db.cursor( )
         self.con_db.commit( )
+        self.cur_db.execute( cmd )
 
     def Reset_Table( self ):
         # Do some setup
-        with self.cur_db.execute( '''DROP TABLE IF EXISTS Revenue;''' ):
-            print( 'Successfuly Deleter all Table' )
+        with self.cur_db.execute( '''DROP TABLE IF EXISTS REVENUE;''' ):
+            print( 'Successfuly Deleter REVENUE Table' )
 
     def CreatDB( self ):
 
         with self.cur_db.execute( '''
 
-            CREATE TABLE dbo.Revenue
+            CREATE TABLE dbo.REVENUE
         	(
-                id int NOT NULL IDENTITY (1, 1),
-                stock_id int NOT NULL,
-                date_id int NOT NULL,
+                stock varchar( 10 ) COLLATE Chinese_Taiwan_Stroke_CS_AS NOT NULL,
+                date date NOT NULL,
                 
-                Month_Revenue int,
-                Last_Month_Revenue int,
-                Last_Year_Revenue int,
+                Month_Revenue decimal( 16, 0 ) NULL,
+                Last_Month_Revenue decimal( 16, 0 ) NULL,
+                Last_Year_Revenue decimal( 16, 0 ) NULL,
                 
-                Last_Month_Ratio float,
-                Last_Year_Ration float,
+                Last_Month_Ratio float NULL,
+                Last_Year_Ration float NULL,
                 
-                Month_Acc_Revenue bigint,
-                Last_Year_Acc_Revenue bigint,
+                Month_Acc_Revenue decimal( 16, 0 ) NULL,
+                Last_Year_Acc_Revenue decimal( 16, 0 ) NULL,
                 
-                ration float
+                ration float NULL
+        	) ON [PRIMARY]
 
-        	)  ON [PRIMARY]
-
-            ALTER TABLE dbo.Revenue ADD CONSTRAINT
-        	PK_Revenue PRIMARY KEY CLUSTERED 
-        	(
-        	    id
-        	) WITH( STATISTICS_NORECOMPUTE = OFF, 
-        	IGNORE_DUP_KEY = OFF, 
-        	ALLOW_ROW_LOCKS = ON, 
-        	ALLOW_PAGE_LOCKS = ON ) ON [PRIMARY]
-
-            ALTER TABLE dbo.Revenue SET ( LOCK_ESCALATION = TABLE )
-
-            COMMIT''' ):
+            COMMIT ''' ):
             print( 'Successfuly Create 營收' )
-
-    def GetStockList( self ):
-
-        cmd = '''SELECT [symbol] FROM [StockDB].[dbo].[Stocks]'''
-
-        ft = self.cur_db.execute( cmd ).fetchall( )
-
-        return [ val[ 0 ] for val in ft ]
 
     def GetDateLst( self, value ):
 
@@ -89,75 +70,25 @@ class DB_Revenue:
 
         return datelst
 
-    def GetStock( self, stock_id ):
+    def CompareDB( self, year, month ):
 
-        ft = self.cur_db.execute( 'SELECT TOP 1 symbol FROM Stocks Where id = ?', (stock_id,) ).fetchone( )
-
-        return ft[ 0 ]
-
-    def GetDate( self, date_id ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 date FROM Dates WHERE id = ?', (date_id,) ).fetchone( )
-
-        return ft[ 0 ]
-
-    def GetStockID( self, stock_symbol ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Stocks WHERE symbol = ?', (stock_symbol,) ).fetchone( )
-
-        return ft[ 0 ]
-
-    def GetDateID( self, year, month ):
-
-        ft = self.cur_db.execute( 'SELECT TOP 1 id FROM Dates WHERE YEAR(Date) = ? AND MONTH(Date) = ?',
-                                  (year, month) ).fetchone( )
-
-        val = year + month + '15'
-
-        if ft is None:
-            self.cur_db.execute( 'INSERT INTO Dates ( date ) VALUES ( ? )', (val,) )
-            return self.cur_db.execute( 'SELECT TOP 1 id FROM Dates WHERE date = ?', (val,) ).fetchone( )[ 0 ]
-        else:
-            return ft[ 0 ]
-
-    def CompareDB( self, date_id ):
-
-        ft = self.cur_db.execute( 'select * from Revenue where date_id = ?', (date_id) ).fetchall( )
-
-        data = [ ]
+        cmd = 'SELECT stock, Month_Revenue FROM REVENUE WHERE MONTH( date ) = \'{0}\' AND YEAR( date ) = \'{1}\''.format( month, year )
+        ft = self.cur_db.execute( cmd ).fetchall( )
+        lst = [ ]
 
         for val in ft:
+            stock = val[ 0 ]
+            Month_Revenue = val[ 1 ]
+            lst.append( ( stock, Month_Revenue ) )
 
-            lst = [ 'None' if v is None else v for v in val ]
+        df_db = pd.DataFrame( lst, columns = [ '公司代號', 'Month_Revenue_FromDB' ] )
+        left = pd.merge( self.df, df_db, on = [ '公司代號' ], how = 'left' )
 
-            lst[ 1 ] = int( self.GetStock( lst[ 1 ] ) )
-            lst[ 2 ] = self.GetDate( lst[ 2 ] ).strftime( '%y%m%d' )
+        left = left[ left[ 'Month_Revenue_FromDB' ] != left[ '當月營收' ] ]
+        del left[ 'Month_Revenue_FromDB' ]
+        self.df = left
 
-            data.append( lst )
-
-        # print( data )
-
-        column = [ 'id', '公司代號', '日期',
-                   '當月營收', '上月營收', '去年當月營收',
-                   '上月比較增減(%)', '去年同月增減(%)',
-                   '當月累計營收', '去年累計營收', '前期比較增減(%)' ]
-
-        self.src_df = pd.DataFrame( data, columns = column )
-
-        del self.src_df[ 'id' ]
-        del self.src_df[ '日期' ]
-
-        self.df = pd.concat( [ self.src_df, self.df ], ignore_index = True )
-        self.df = self.df.drop_duplicates( [ '公司代號' ], keep = False )
-
-        lst = [ '公司代號', '當月營收', '上月營收', '去年當月營收',
-                '上月比較增減(%)', '去年同月增減(%)',
-                '當月累計營收', '去年累計營收', '前期比較增減(%)' ]
-
-        self.df = self.df[ lst ]
-
-        # print( self.src_df.iloc[ 0 ] )
-        # print( self.df.iloc[ 0 ] )
+        # print( self.df )
 
     def GetStockDF( self, value ):
 
@@ -176,7 +107,7 @@ class DB_Revenue:
 
     def ReadCSV( self, file ):
 
-        self.df = pd.read_csv( file, sep = ',', encoding = 'utf8', false_values = 'NA', dtype = { '日期': str } )
+        self.df = pd.read_csv( file, sep = ',', encoding = 'utf8', false_values = 'NA', dtype = { '公司代號': str } )
 
         del self.df[ '產業別' ]
         del self.df[ '公司名稱' ]
@@ -184,77 +115,57 @@ class DB_Revenue:
         # self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%y%m%d" )
         # print( self.df )
 
-    def WriteDB( self, date_id ):
+    def WriteDB( self, year, month ):
 
         self.df = self.df.astype( object ).where( pd.notnull( self.df ), None )
 
         lst = self.df.values.tolist( )
 
-        print( '寫入筆數', len( lst ) )
+        if len( lst ) == 0:
+            print( '資料庫比對CSV無新資料 {0}-{1}'.format( year, month ) )
+            return
 
         for val in lst:
 
-            varlist = [ None if i == u'不適用' else i for i in val ]
+            val = [ None if i == u'不適用' else i for i in val ]
+            val.pop( 0 )
+            val.insert( 1, '{0}-{1}-15'.format( year, month ) )
+            print( val )
 
-            # print( varlist, type( varlist[ 2 ] ) )
+            var_string = ', '.join( '?' * len( val ) )
+            query_string = 'INSERT INTO REVENUE VALUES ( {} );'.format( var_string )
 
-            var_string = ', '.join( '?' * (len( varlist ) + 1) )
+            with self.cur_db.execute( query_string, val ):
+                print( '寫入資料庫 {} {}'.format( val[ 0 ], val[ 1 ] ) )
 
-            query_string = 'INSERT INTO Revenue VALUES ( {} );'.format( var_string )
-
-            try:
-                stock_num = self.GetStockID( varlist[ 0 ] )
-            except:
-                print( varlist[ 0 ], '股號無存在資料庫' )
-                continue
-
-            varlist[ 0 ] = date_id
-
-            varlist.insert( 0, stock_num )
-
-            # print( varlist )
-
-            self.cur_db.execute( query_string, (varlist) )
-
-            # print( varlist )
 
 
 def main( ):
-    server = 'localhost'
-    database = 'StockDB'
-    username = 'sa'
-    password = 'admin'
 
-    db = DB_Revenue( server, database, username, password )
+    try:
+        db = DB_Revenue( 'localhost', 'StockDB', 'sa', 'admin' )
+    except Exception as e:
+        db = DB_Revenue( 'localhost', 'StockDB', 'sa', '292929' )
 
     # db.Reset_Table( )
     # db.CreatDB( )
 
-    start_tmr = datetime.now( )
-
     # 讀取資料夾
     for file in os.listdir( '.\\' ):
 
-        if file.endswith( ".csv" ) != 1:
+        # if file.endswith( ".csv" ) != 1:
+        if file.endswith( "上市營收_201001.csv" ) != 1:
             continue
 
-        year = file[ 5:9 ]
+        year  = file[ 5:9 ]
         month = file[ 9:11 ]
-
         db.ReadCSV( file )
-
-        date_id = db.GetDateID( year, month )
-
-        print( year, month, date_id )
-
-        db.CompareDB( date_id )
-
-        db.WriteDB( date_id )
+        db.CompareDB( year, month )
+        db.WriteDB( year, month )
         db.cur_db.commit( )
-
-    print( datetime.now( ) - start_tmr )
-
 
 if __name__ == '__main__':
 
+    start_tmr = datetime.now( )
     main( )
+    print( datetime.now( ) - start_tmr )
