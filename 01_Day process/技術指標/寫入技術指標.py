@@ -334,7 +334,7 @@ class DB_TechAnalysis:
 
         # print( table_name, stock_num )
 
-        cmd = 'SELECT date, volume FROM {0} WHERE stock = {1}'.format( self.d[ data ], self.stock )
+        cmd = 'SELECT date, volume FROM {0} WHERE stock = \'{1}\''.format( self.d[ data ], self.stock )
 
         ft = self.cur_db.execute( cmd ).fetchall( )
         lst = [ ]
@@ -461,7 +461,11 @@ def main( ):
     for file in glob.glob( '*.csv' ):
 
         # 讀取股號
-        num = re.match( '\d*', file ).group( 0 )
+
+        # num = re.match( '\d*', file ).group( 0 )
+        # print( file.split( '_', 1 )[ 0 ], file )
+        num = file.split( '_' )[ 0 ]
+
         data = file[ -10:-9 ]
 
         if data in stock_d.keys( ):

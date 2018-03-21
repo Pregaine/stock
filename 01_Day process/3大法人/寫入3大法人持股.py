@@ -64,7 +64,7 @@ class DB_Investors :
 
     def CompareDB( self ):
 
-        cmd = 'SELECT date, foreign_sell FROM INVESTORS WHERE stock = {}'.format( self.stock )
+        cmd = 'SELECT date, foreign_sell FROM INVESTORS WHERE stock = \'{}\''.format( self.stock )
 
         ft = self.cur_db.execute( cmd ).fetchall( )
 
@@ -140,8 +140,9 @@ def main( ):
         if file.endswith( ".csv" ) != 1:
             continue
 
-        db.stock = file[ 0:4 ]
 
+        db.stock = file.replace('_3大法人持股.csv', '' )
+        print( db.stock )
         db.ReadCSV( file )
 
         db.CompareDB( )

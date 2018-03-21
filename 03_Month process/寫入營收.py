@@ -153,8 +153,8 @@ def main( ):
     # 讀取資料夾
     for file in os.listdir( '.\\' ):
 
-        # if file.endswith( ".csv" ) != 1:
-        if file.endswith( "上市營收_201001.csv" ) != 1:
+        if file.endswith( ".csv" ) != 1:
+        # if file.endswith( "上市營收_201001.csv" ) != 1:
             continue
 
         year  = file[ 5:9 ]
