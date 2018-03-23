@@ -76,6 +76,7 @@ class dbHandle:
             try:
                 row = ( self.stock, self.date, brokerage_symbol, brokerage_name, price, buy_volume, sell_volume )
                 self.cur_db.execute( cmd, row )
+                print( '寫入成功', row )
             except:
                 print( '寫入失敗', row )
 
@@ -111,8 +112,8 @@ def main( ):
         db = dbHandle( 'localhost', 'StockDB', 'sa', "292929" )
         print( '{}'.format( e ) )
 
-    db.ResetTable( 'BROKERAGE' )
-    db.CreateTable(  )
+    # db.ResetTable( 'BROKERAGE' )
+    # db.CreateTable(  )
     db.InsertDB( )
 
 if __name__ == '__main__':
