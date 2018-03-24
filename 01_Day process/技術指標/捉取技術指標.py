@@ -61,21 +61,24 @@ class Technical_Indicator:
 
     def GetDF( self ):
 
-        #  範例 http://jsinfo.wls.com.tw/Z/ZC/ZCW/CZKC1.djbcd?a=2889&b=D&c=1440
-        # url = "http://jsinfo.wls.com.tw/z/BCD/czkc1.djbcd"
         url = "http://5850web.moneydj.com/z/BCD/czkc1.djbcd"
 
         querystring = { "a": self.number, "b": self.type, "c": self.days, "E": "1", "ver": "5" }
 
         headers = {
-            'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/64.0.3282.186 Safari/537.36",
-            'content-type': "text/html;charset=big5", 'accept': "*/*",
+            'user-agent': "Chrome/64.0.3282.186",
+            'content-type': "text/html;charset=big5",
+            'accept': "*/*",
             'referer': "http://5850web.moneydj.com/z/zc/zcw/zcw1.DJHTM?A={}".format( self.number ),
             'accept-encoding': "gzip, deflate",
             'accept-language': "zh-TW,zh-CN;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
             'cache-control': "no-cache", }
 
-        response = requests.request( "GET", url, headers = headers, params = querystring )
+        try:
+            response = requests.request( "GET", url, headers = headers, params = querystring )
+            print( response.url )
+        except Exception as e:
+            print( response.url )
 
         data = response.text.split( ' ' )
 
@@ -311,7 +314,6 @@ class Technical_Indicator:
         try:
             pre_day = int( self.df.loc[ index, '日期' ][ 0:2 ] )
         except ValueError as e:
-            # print( str(e) )
             print( "股號", self.number, self.type, '資料不足' )
             return True
 
@@ -330,11 +332,8 @@ class Technical_Indicator:
 
             pre_day = now_day
 
-            # print( 'now', now_year, now_month, now_day )
             # print( "self.df.loc[ val, '日期' ]", self.df.loc[ val, '日期' ] )
-
             self.df.loc[ val, '日期' ] = str( now_year - 2000 ) + '{:0>2}'.format( now_month ) + self.df.loc[ val, '日期' ][ 0:4 ]
-            # print( '日期{}'.format( self.df.loc[ val, '日期' ] ) )
 
         self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%y%m%d%H" )
         return False
@@ -355,7 +354,7 @@ class Technical_Indicator:
             self.df.to_csv( self.path, sep = ',', encoding = 'utf-8', date_format='%y%m%d%H' )
 
 def _GetMonth( obj ):
-
+    time.sleep( 1 )
     obj.GetDF( )
 
     obj.CombineDF( )
@@ -373,7 +372,7 @@ def _GetMonth( obj ):
     obj.SaveCSV( )
 
 def _GetWeek( obj ):
-
+    time.sleep( 1 )
     obj.GetDF( )
 
     obj.CombineDF( )
@@ -391,7 +390,7 @@ def _GetWeek( obj ):
     obj.SaveCSV( )
 
 def _GetDay( obj, week, month ):
-
+    time.sleep( 1 )
     obj.GetDF( )
 
     obj.CombineDF( )
@@ -410,7 +409,7 @@ def _GetDay( obj, week, month ):
     obj.SaveCSV( )
 
 def _Get60Minute( obj ):
-
+    time.sleep( 1 )
     obj.GetDF( )
 
     if obj.ConverYearLst( ):
@@ -430,8 +429,9 @@ def _Get60Minute( obj ):
     obj.GetTi( )
     obj.SaveCSV( )
 
-def DetStockIsNotExist( number ):
+def _DetStockIsNotExist( number ):
 
+    time.sleep( 1 )
     url = "http://5850web.moneydj.com/z/zc/zcw/zcw1.DJHTM"
 
     querystring = { "A": number }
@@ -445,15 +445,12 @@ def DetStockIsNotExist( number ):
         'cache-control': "no-cache", }
 
     response = requests.request( "GET", url, headers = headers, params = querystring )
-
     soup = BS( response.text, "html.parser" )
-
-    print( '股號{:<5}處理中'.format(number) )
+    print( '股號{:>7} 處理中'.format(number) )
 
     try:
         row = soup.find( 'center' ).text
     except AttributeError as e:
-        # print( str( e ) )
         return False
 
     if row == '所選個股代碼錯誤':
@@ -465,98 +462,61 @@ def DetStockIsNotExist( number ):
 def GetFile( *lst ):
 
     query = { 'W': 480, 'D': 1200, 'M': 120, '60': 1200 }
+    lst = list( lst )
 
-    for stock in lst:
+    while lst:
 
         start_tmr = datetime.now( )
-
+        stock = lst.pop( 0 )
         ti_W  = Technical_Indicator( stock, 'W', **query )
         ti_M  = Technical_Indicator( stock, 'M', **query )
         ti_60 = Technical_Indicator( stock, '60', **query )
         ti_D  = Technical_Indicator( stock, 'D', **query )
 
-        cnt = 2
-
-        #  print( '股號', stock, ' ', end="" )
-        time.sleep( 0.1 )
-        if DetStockIsNotExist( stock ):
-            continue
-
-        # try:
-        if CompareFileCreatetime( ti_60.path ):
-            time.sleep( 0.1 )
+        try:
             if _Get60Minute( ti_60 ):
                 continue
-        # except:
-        # print( stock, '捉取60分線發生問題' )
-
-        # try:
-        if CompareFileCreatetime( ti_W.path ):
-            time.sleep( 0.1 )
-            cnt = cnt - 1
             _GetWeek( ti_W )
-        # except:
-        #     print( stock, '周線無資料' )
-
-        # try:
-        if CompareFileCreatetime( ti_M.path ):
-            time.sleep( 0.1 )
-            cnt = cnt - 1
             _GetMonth( ti_M )
-        # except:
-        #     print( stock, '捉取月線發生問題' )
-
-        # try:
-        if CompareFileCreatetime( ti_D.path ) and cnt == 0:
-            time.sleep( 0.1 )
             _GetDay( ti_D, ti_W, ti_M )
-        # except:
-        # print( stock, "捉取日線發生問題" )
+        except Exception as e:
+            print( '{}'.format( e ) )
+            if '{}'.format( e ) != 'day is out of range for month':
+                lst.append( stock )
+                print( 'lst.append({})'.format( stock ) )
 
         consumption = datetime.now( ) - start_tmr
-        print( '股號{:<5}花費時間{}'.format( stock, consumption )  )
+        print( '股號{0:>7} 耗時{1:>4} Second'.format( stock, consumption.seconds ) )
 
-def CompareFileCreatetime( path, hour = 12 ):
+def CompareFileModifyTime( path, hour = 24 ):
 
     one_days_ago = datetime.now( ) - timedelta( hours = hour )
-
     try:
-        filetime = datetime.fromtimestamp( os.path.getctime( path ) )
-
-        # print( 'filetime', filetime )
-        # print( 'one_days_ago', one_days_ago )
-
+        filetime = datetime.fromtimestamp( os.path.getmtime( path ) )
         if filetime < one_days_ago:
-            # print( path, '檔案更新' )
-            return True
-        else:
-            print( '{:<20}更新時間不超過{}hour'.format( path, hour ) )
+            print( '{0:<20}修改 {1} 超過 {2} hour'.format( path, filetime.strftime( '%m-%d %H:%M' ), hour ) )
             return False
-
+        else:
+            return True
     except Exception as e:
-        print( '{}'.format( e ) )
-    # except FileNotFoundError:
-        pass
-
-    return True
+        return False
 
 def main( ):
-
-    """MoneyDj http://5850web.moneydj.com/z/zc/zcw/zcw1.DJHTM?A=2354"""
-    """股票已下市"""
-    # stock_lst = [ '3559', '0050', '0058', '0053' ]
-    # stock_lst = [ '0050', '3312' ]
-
+    """範例http://5850web.moneydj.com/z/zc/zcw/zcw1_3312.djhtm"""
     try:
         db = dbHandle( 'localhost', 'StockDB', 'sa', 'admin' )
     except Exception as e:
-        print( str(e) )
         db = dbHandle( 'localhost', 'StockDB', 'sa', '292929' )
 
-    # stock_lst = db.GetStockList( )
-    stock_lst = list( TWSE.codes.keys( ) )
+    empty_lst = list( TWSE.codes.keys( ) )
+    stock_lst = [ ]
 
-    print( '股票開始比對', len( stock_lst ), '數量' )
+    for stock in empty_lst:
+        if CompareFileModifyTime( '{0}_日線技術指標.csv'.format( stock ) ):
+            continue
+        stock_lst.append( stock)
+
+    print( '股票需更新{}支'.format( len( stock_lst ) ) )
 
     thread_count = 2
     thread_list = [ ]
@@ -564,7 +524,6 @@ def main( ):
     for i in range( thread_count ):
         start = math.floor( i * len( stock_lst ) / thread_count )
         end   = math.floor( ( i + 1 ) * len( stock_lst ) / thread_count )
-        print( 'stock_lst', start, end )
         thread_list.append( threading.Thread( target = GetFile, args = stock_lst[ start:end ]  ) )
 
     for thread in thread_list:
@@ -576,7 +535,5 @@ def main( ):
 if __name__ == '__main__':
 
     start_time = time.time( )
-
     main( )
-
     print( 'The script took {:06.2f} minute !'.format( ( time.time( ) - start_time ) / 60  ) )

@@ -10,6 +10,7 @@ import numpy as np
 import csv
 import pyodbc
 import codes.codes as TWSE
+import decimal
 
 # Todo
 # 建立 Table
@@ -121,7 +122,9 @@ class dbHandle:
         ft = self.cur_db.execute( cmd ).fetchall( )
 
         # price = ft[ 0 ][ 0 ]
-        vol = ft[ 0 ][ 1 ]
+        vol = 0
+        for v in ft:
+            vol = vol + v[ 1 ]
         return vol
 
     def GetTopSellBetweenDay(self, symbol, start_day, end_day ):
@@ -139,8 +142,9 @@ class dbHandle:
 
         ft = self.cur_db.execute( cmd ).fetchall( )
         # price = ft[ 0 ][ 0 ]
-        vol   = ft[ 0 ][ 1 ]
-
+        vol = 0
+        for v in ft:
+            vol = vol + v[ 1 ]
         return vol
 
     def GetConcentrateBetweenDay( self, symbol, end, start ):
@@ -162,7 +166,7 @@ class dbHandle:
 def unit( tar_file ):
 
     # 回推天數，計算集中度
-    days = 1
+    days = 20
     tmp = '籌碼集中暫存.csv'
 
     try:
@@ -179,25 +183,15 @@ def unit( tar_file ):
         with open( tmp, 'wb' ) as f:
             csv.writer( f )
 
-    cols = [ '日期', '股號', '01天集中', '03天集中', '05天集中', '10天集中', '20天集中', '60天集中' ]
+    cols = [ '股號', '日期', '01天', '03天', '05天', '10天', '20天', '60天' ]
 
     df = pd.read_csv( tmp, sep = ',', encoding = 'utf8', false_values = 'NA',
-                      names = cols, dtype={ '股號': str } )
-
-    tmp_lst = df[ '股號' ].tolist( )
-
-    if len( tmp_lst ) is not 0:
-        src_lst = list( set( stock_lst ) - set( tmp_lst ) )
-        src_lst.insert( 0, tmp_lst[ -1 ] )
-    else:
-        src_lst = stock_lst
-
-    print( '籌碼集中進度剩餘 {} 筆'.format( len( src_lst ) )  )
+                      names = cols, dtype={ '股號': str, '日期':str } )
 
     # for stock in sorted( src_lst ):
     for stock in [ '2608' ]:
 
-        db.GetDates( stock, '61' )
+        db.GetDates( stock, '121' )
 
         day01_lst = db.Get_BetweenDayList( 1 )
         day03_lst = db.Get_BetweenDayList( 3 )
@@ -205,8 +199,13 @@ def unit( tar_file ):
         day10_lst = db.Get_BetweenDayList( 10 )
         day20_lst = db.Get_BetweenDayList( 20 )
         day60_lst = db.Get_BetweenDayList( 60 )
+        day120_lst = db.Get_BetweenDayList( 120 )
 
         for val in range( days ):
+
+            if df[ '日期' ].str.contains( day01_lst[ val ][ 0 ] ).any( ):
+                if df[ '股號' ].str.contains( stock ).any( ):
+                    continue
 
             df_01 = None
             df_03 = None
@@ -214,35 +213,30 @@ def unit( tar_file ):
             df_10 = None
             df_20 = None
             df_60 = None
+            df_120 = None
 
-            # try:
-            df_01 = db.GetConcentrateBetweenDay( stock, day01_lst[ val ][ 0 ], day01_lst[ val ][ 1 ] )
-            df_03 = db.GetConcentrateBetweenDay( stock, day03_lst[ val ][ 0 ], day03_lst[ val ][ 1 ] )
-            df_05 = db.GetConcentrateBetweenDay( stock, day05_lst[ val ][ 0 ], day05_lst[ val ][ 1 ] )
-            df_10 = db.GetConcentrateBetweenDay( stock, day10_lst[ val ][ 0 ], day10_lst[ val ][ 1 ] )
-            df_20 = db.GetConcentrateBetweenDay( stock, day20_lst[ val ][ 0 ], day20_lst[ val ][ 1 ] )
-            # df_60 = db.GetConcentrateBetweenDay( stock, day60_lst[ val ][ 0 ], day60_lst[ val ][ 1 ] )
+            try:
+                df_01 = db.GetConcentrateBetweenDay( stock, day01_lst[ val ][ 0 ], day01_lst[ val ][ 1 ] )
+                df_03 = db.GetConcentrateBetweenDay( stock, day03_lst[ val ][ 0 ], day03_lst[ val ][ 1 ] )
+                df_05 = db.GetConcentrateBetweenDay( stock, day05_lst[ val ][ 0 ], day05_lst[ val ][ 1 ] )
+                df_10 = db.GetConcentrateBetweenDay( stock, day10_lst[ val ][ 0 ], day10_lst[ val ][ 1 ] )
+                df_20 = db.GetConcentrateBetweenDay( stock, day20_lst[ val ][ 0 ], day20_lst[ val ][ 1 ] )
+                df_60 = db.GetConcentrateBetweenDay( stock, day60_lst[ val ][ 0 ], day60_lst[ val ][ 1 ] )
+                df_120 = db.GetConcentrateBetweenDay( stock, day120_lst[ val ][ 0 ], day120_lst[ val ][ 1 ] )
+            except IndexError:
+                print( stock, '日期範圍不足' )
+
             row = ( stock, day01_lst[ val ][ 0 ], df_01, df_03, df_05, df_10, df_20, df_60 )
-
-            # except IndexError:
-            #     row = ( stock, db.date_lst[ 0 ], df_01, df_03, df_05, df_10, df_20, df_60 )
-            #     print( stock, '日期範圍不足' )
-
             db.Write( row )
 
             with open( tmp, 'a', newline = '\n', encoding = 'utf8' ) as csv_file:
                 file = csv.writer( csv_file, delimiter = ',' )
                 file.writerow( row )
 
-    result = pd.read_csv( tmp, sep = ',', encoding = 'utf8', false_values = 'NA',
-                          names = cols, dtype={ '股號': str } )
-
-    result.drop_duplicates( [ '日期', '股號' ], keep = 'last', inplace = True )
+    result = pd.read_csv( tmp, sep = ',', encoding = 'utf8', false_values = 'NA', names = cols, dtype={ '股號': str, '日期':str } )
 
     result.sort_values( by = [ '日期', '股號' ], ascending = [ False, True ], inplace =  True )
-
     result = result.reset_index( drop = True )
-
     df_writer = pd.ExcelWriter( tar_file )
     result.to_excel( df_writer, sheet_name = '籌碼分析' )
 

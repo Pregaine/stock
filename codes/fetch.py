@@ -24,6 +24,7 @@ def make_row_tuple(typ, row):
 
 def fetch_data(url):
     r = requests.get(url)
+    print( r.url )
     root = etree.HTML( r.text )
     trs = root.xpath('//tr')[1:]
 
@@ -46,15 +47,15 @@ def fetch_data(url):
 def to_csv( url, path ):
 
     data = fetch_data( url )
-
+    print( 'Save File Path {}'.format( path ) )
     with open( path, 'w', newline='', encoding='utf_8' ) as csvfile:
         writer = csv.writer( csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL )
         writer.writerow( data[0]._fields )
         for d in data:
             writer.writerow( [ _ for _ in d ] )
             
-def GetFile( ):
-    to_csv( TWSE_EQUITIES_URL, 'twse_equities.csv' )
+def GetFile( path ):
+    to_csv( TWSE_EQUITIES_URL, path )
             
 
 if __name__ == '__main__':

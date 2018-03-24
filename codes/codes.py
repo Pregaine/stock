@@ -27,26 +27,21 @@ def read_csv( path, types ):
     one_days_ago = datetime.now( ) - timedelta( hours = 24 )
 
     try:
-        print( "file path {}".format( TWSE_EQUITIES_CSV_PATH ) )
-        filetime = datetime.fromtimestamp( os.path.getctime( path ) )
+        filetime = datetime.fromtimestamp( os.path.getmtime( TWSE_EQUITIES_CSV_PATH ) )
         if filetime < one_days_ago:
-            print( "更新股票代號http://isin.twse.com.tw/isin/C_public.jsp?strMode=2" )
-            TWSE.GetFile( )
+            TWSE.GetFile( TWSE_EQUITIES_CSV_PATH )
 
     except Exception as e:
-        TWSE.GetFile( )
+        TWSE.GetFile( TWSE_EQUITIES_CSV_PATH )
         # print( '{}'.format( e ) )
-    
+
     with open( path, newline='', encoding='utf_8' ) as csvfile:
         reader = csv.reader( csvfile )
         csvfile.readline( )
         for row in reader:
-
             row = ROW( *row )
-
             if row.type == '股票' or row.type == 'ETF':
                 codes[ row.code] = row
-
             if types == 'tpex':
                 tpex[row.code] = row
             else:
