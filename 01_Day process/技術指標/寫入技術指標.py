@@ -7,8 +7,23 @@ import re
 import numpy as np
 import glob
 import time
+import urllib
+from sqlalchemy import create_engine
 
+def Connection():
+    return pyodbc.connect(
+    'DRIVER={ODBC Driver 13 for SQL Server};'+
+    'SERVER=localhost;' +
+    'PORT=1443;' +
+    'DATABASE=StockDB;' +
+    'UID=sa;'+
+    'PWD=admin;' )
 
+# Create the sqlalchemy engine using the pyodbc connection
+engine = create_engine( "mssql+pyodbc://", creator = Connection, convert_unicode = True )
+con = engine.connect( )
+con.execute( "SET LANGUAGE us_english; set dateformat ymd;" )
+con.close()
 
 def StrToDateFormat( data, val ):
 
@@ -47,6 +62,7 @@ class DB_TechAnalysis:
                                       ';UID=' + username +
                                       ';PWD=' + password )
 
+        self.con_db.setencoding( 'utf-8' )
         self.cur_db = self.con_db.cursor( )
         self.con_db.commit( )
 
@@ -331,100 +347,125 @@ class DB_TechAnalysis:
 
 
     def CompareDB( self, data ):
-
         # print( table_name, stock_num )
-
         cmd = 'SELECT date, volume FROM {0} WHERE stock = \'{1}\''.format( self.d[ data ], self.stock )
-
         ft = self.cur_db.execute( cmd ).fetchall( )
         lst = [ ]
 
         for val in ft:
-
             if data != '分':
                 date = val[ 0 ].strftime( '%y%m%d' )
             else:
                 date = val[ 0 ].strftime( '%y%m%d%H' )
 
             volume = val[ 1 ]
-
             lst.append( ( date, volume ) )
 
         df = pd.DataFrame( lst, columns = [ '日期', '成交量_資料庫取出' ] )
-
         # print( df.head( 5 ) )
-
         left = pd.merge( self.df, df, on = [ '日期' ], how = 'left' )
-
         left = left[ left[ '成交量_資料庫取出' ] != left[ '成交量' ]  ]
-
         del left[ '成交量_資料庫取出' ]
-
         self.df = left
-
         #  self.df = self.df[ ~self.df[ '日期' ].isin( lst ) ]
         #  print( data, '刪除重覆寫入', self.df )
 
     def ReadCSV( self, file ):
-
         self.df = pd.read_csv( file, sep = ',', encoding = 'utf8', false_values = 'NA', dtype = { '日期': str } )
-
         self.df = self.df.replace( [ np.inf, -np.inf ], np.nan )
-
         # self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%y%m%d" )
-
         # print( self.df )
 
     def FindDuplicate( self, data ):
 
-        cmd = '''SELECT * from {} where stock = ? and date = ? '''.format( self.d[ data ] )
-
         # 尋找重覆資料
+        cmd = '''SELECT stock, date from {} where stock = ? and date = ? '''.format( self.d[ data ] )
         ft = self.cur_db.execute( cmd, ( self.stock, self.date )  ).fetchone( )
-        print( '比對資料庫資料', self.stock, self.date )
+        print( '比對資料庫{0:>10} {1}'.format( self.stock, self.date ) )
 
         if ft is not None:
-
             cmd = 'DELETE FROM {} where stock = ? and date = ?'.format( self.d[ data ] )
-
             with self.cur_db.execute( cmd, ( self.stock, self.date ) ):
-                print( '刪除重覆資料', self.stock, self.date )
-
+                print( '刪除重覆資料{0:>7}{1}'.format(self.stock, self.date) )
 
     def WriteDB( self, data, First_Create = False ):
 
         self.df = self.df.astype( object ).where( pd.notnull( self.df ), None )
 
-        lst = self.df.values.tolist( )
-
-        if len( lst ) == 0:
-            print( self.stock, 'exist DB' )
+        if self.df.empty:
+            print( '{:<7}exist DB'.format(self.stock) )
             return
 
-        for val in lst:
+        del self.df[ 'Unnamed: 0' ]
+        self.df.insert( 0, 'stock', self.stock )
+        # self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = '%y%m%d' )
+        # self.df[ '日期' ] = self.df[ '日期' ].dt.strftime( "%y-%m-%d" )
 
-            val.pop( 0 )
+        self.df.columns = [ 'stock',
+                            'date',
+                            'open_price',
+                            'high_price',
+                            'low_price',
+                            'close_price',
+                            'volume',
+                            'd_pec',
+                            'w_pec',
+                            'm_pec',
+                            'ma3',
+                            'ma5',
+                            'ma8',
+                            'ma10',
+                            'ma20',
+                            'ma60',
+                            'ma120',
+                            'ma240',
+                            'ma480',
+                            'ma600',
+                            'ma840',
+                            'ma1200',
+                            'rsi2',
+                            'rsi4',
+                            'rsi5',
+                            'rsi10',
+                            'k9_3',
+                            'd9_3',
+                            'k3_2',
+                            'd3_3',
+                            'mfi4',
+                            'mfi6',
+                            'mfi14',
+                            'macd_dif_6',
+                            'dem_12',
+                            'osc_6_12_9',
+                            'macd_dif_12',
+                            'dem_26',
+                            'osc6_12_26_9',
+                            'willr9',
+                            'willr18',
+                            'willr42',
+                            'willr14',
+                            'willr24',
+                            'willr56',
+                            'willr72',
+                            'plus_di',
+                            'minus_di',
+                            'dx',
+                            'adx',
+                            'upperband',
+                            'middleband',
+                            'dnperband',
+                            'bb',
+                            'w20',
+                            'bias20',
+                            'bias60' ]
 
-            val[ 0 ] = StrToDateFormat( data, val[ 0 ] )
-            self.date = val[ 0 ]
-            val.insert( 0, self.stock )
-            var_string = ', '.join( '?' * ( len( val )  ) )
-
-            if First_Create is False:
-                self.FindDuplicate( data )
-
-            query_string = 'INSERT INTO {} VALUES ( {} )'.format( self.d[ data ], var_string )
-
-            # print( query_string )
-            # print(val)
-
-            with self.cur_db.execute( query_string, val ):
-                print( '寫入資料庫 {} {} {}'.format( data, self.stock, self.date ) )
+        # Try to send it to the access database (and fail)
+        self.df.to_sql( name = self.d[ data ], con = engine, index=False, if_exists = 'append', index_label = None )
+        print( '寫入資料庫{0:>2}{1:>7} {2}'.format( data, self.stock, self.date ) )
 
 def main( ):
 
     First_Create = False
-
     try:
         db_M = DB_TechAnalysis( 'localhost', 'StockDB', 'sa', 'admin' )
         db_W = DB_TechAnalysis( 'localhost', 'StockDB', 'sa', 'admin' )
@@ -456,39 +497,23 @@ def main( ):
             '周': [ db_W, '_周線技術指標.csv'],
             '月': [ db_M, '_月線技術指標.csv'] }
 
-
     # 讀取資料夾
-    for file in glob.glob( '*.csv' ):
-
-        # 讀取股號
-
+    for file in glob.glob( '*_日線技術指標.csv' ):
         # num = re.match( '\d*', file ).group( 0 )
         # print( file.split( '_', 1 )[ 0 ], file )
         num = file.split( '_' )[ 0 ]
-
         data = file[ -10:-9 ]
 
         if data in stock_d.keys( ):
-
             Obj = stock_d[ data ][ 0 ]
             path = num + stock_d[ data ][ 1 ]
-
-            # 讀取來源檔
             Obj.stock = num
-
             print( '讀取{}'.format( path ) )
             Obj.ReadCSV( path )
-
-            # 刪去重覆資料
             Obj.CompareDB( data )
-
-            # 寫入資料庫
             Obj.WriteDB( data, First_Create )
-
-            Obj.cur_db.commit( )
         else:
             print( '讀取錯誤 {}'.format( data ) )
-
 
 if __name__ == '__main__':
 

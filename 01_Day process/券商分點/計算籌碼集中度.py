@@ -129,14 +129,11 @@ class dbHandle:
 
     def GetTopSellBetweenDay(self, symbol, start_day, end_day ):
 
-        start_day = '\'' + start_day + '\''
-        end_day   = '\'' + end_day + '\''
-
         cmd = ''' SELECT TOP( 15 )  	
                 sum( sell_volume * price ) - sum( buy_volume * price ) as buy_sell_price,
                 sum( sell_volume - buy_volume ) / 1000 as buy_sell_vol                 
                 FROM BROKERAGE	
-                WHERE stock = {0} and date between {1} and {2}
+                WHERE stock = \'{0}\' and date between \'{1}\' and \'{2}\'
                 GROUP BY stock, brokerage
                 ORDER BY buy_sell_price DESC'''.format( symbol, start_day, end_day )
 
@@ -158,8 +155,8 @@ class dbHandle:
             concentrate =  ( ( buy_vol - sell_vol ) / sum_vol ) * 100
             concentrate = concentrate.__round__( 2 )
 
-        row = '{0}~{1} 買總量 {2:10.1f} 賣總量 {3:10.1f} 總量 {4:10.1f} 集中度 {5:3.2f}'.format( end, start, buy_vol, sell_vol, sum_vol, concentrate )
-        print( '{0} {1}'.format( symbol, row )  )
+        # row = '{0}~{1} 買總量 {2:.1f} 賣總量 {3:.1f} 總量 {4:.1f} 集中度 {5:.2f}'.format( end, start, buy_vol, sell_vol, sum_vol, concentrate )
+        # print( '{0} {1}'.format( symbol, row )  )
 
         return concentrate
 
@@ -188,10 +185,10 @@ def unit( tar_file ):
     df = pd.read_csv( tmp, sep = ',', encoding = 'utf8', false_values = 'NA',
                       names = cols, dtype={ '股號': str, '日期':str } )
 
-    # for stock in sorted( src_lst ):
-    for stock in [ '2608' ]:
+    for stock in stock_lst:
+    # for stock in [ '2722' ]:
 
-        db.GetDates( stock, '121' )
+        db.GetDates( stock, '61' )
 
         day01_lst = db.Get_BetweenDayList( 1 )
         day03_lst = db.Get_BetweenDayList( 3 )
@@ -199,9 +196,13 @@ def unit( tar_file ):
         day10_lst = db.Get_BetweenDayList( 10 )
         day20_lst = db.Get_BetweenDayList( 20 )
         day60_lst = db.Get_BetweenDayList( 60 )
-        day120_lst = db.Get_BetweenDayList( 120 )
+        # day120_lst = db.Get_BetweenDayList( 120 )
 
         for val in range( days ):
+            print( stock, val, day01_lst )
+
+            if len( day01_lst ) <= val:
+                continue
 
             if df[ '日期' ].str.contains( day01_lst[ val ][ 0 ] ).any( ):
                 if df[ '股號' ].str.contains( stock ).any( ):
@@ -213,7 +214,7 @@ def unit( tar_file ):
             df_10 = None
             df_20 = None
             df_60 = None
-            df_120 = None
+            # df_120 = None
 
             try:
                 df_01 = db.GetConcentrateBetweenDay( stock, day01_lst[ val ][ 0 ], day01_lst[ val ][ 1 ] )
@@ -222,12 +223,12 @@ def unit( tar_file ):
                 df_10 = db.GetConcentrateBetweenDay( stock, day10_lst[ val ][ 0 ], day10_lst[ val ][ 1 ] )
                 df_20 = db.GetConcentrateBetweenDay( stock, day20_lst[ val ][ 0 ], day20_lst[ val ][ 1 ] )
                 df_60 = db.GetConcentrateBetweenDay( stock, day60_lst[ val ][ 0 ], day60_lst[ val ][ 1 ] )
-                df_120 = db.GetConcentrateBetweenDay( stock, day120_lst[ val ][ 0 ], day120_lst[ val ][ 1 ] )
+                # df_120 = db.GetConcentrateBetweenDay( stock, day120_lst[ val ][ 0 ], day120_lst[ val ][ 1 ] )
             except IndexError:
                 print( stock, '日期範圍不足' )
 
             row = ( stock, day01_lst[ val ][ 0 ], df_01, df_03, df_05, df_10, df_20, df_60 )
-            db.Write( row )
+            # db.Write( row )
 
             with open( tmp, 'a', newline = '\n', encoding = 'utf8' ) as csv_file:
                 file = csv.writer( csv_file, delimiter = ',' )

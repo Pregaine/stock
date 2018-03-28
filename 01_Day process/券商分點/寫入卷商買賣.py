@@ -5,6 +5,23 @@ import csv
 from datetime import datetime
 import glob
 import time
+import pandas as pd
+import numpy as np
+from sqlalchemy import create_engine
+
+
+def conn():
+    return pyodbc.connect(
+    'DRIVER={ODBC Driver 13 for SQL Server};' +
+    'SERVER=localhost;' + 'PORT=1443;' +
+    'DATABASE=StockDB;' +
+    'UID=sa;' + 'PWD=admin;' )
+
+# Create the sqlalchemy engine using the pyodbc connection
+engine = create_engine( "mssql+pyodbc://", creator = conn, convert_unicode = True, echo=False )
+con = engine.connect( )
+con.execute( "SET LANGUAGE us_english; set dateformat ymd;" )
+con.close()
 
 class dbHandle:
 
@@ -80,29 +97,43 @@ class dbHandle:
             except:
                 print( '寫入失敗', row )
 
+    def InsertDF2DB( self, filename ):
+
+        # f = open( filename, 'r', encoding = 'utf8', errors = 'ignore' )
+        lst = [ 'index', 'brokerage', 'price', 'buy_volume', 'sell_volume' ]
+
+        df = pd.read_csv( filename, lineterminator = '\n', encoding = 'utf8', names = lst, sep = ',',
+                          index_col = False,
+                          na_filter=False,
+                           )
+        del df[ 'index' ]
+        df[ 'brokerage' ].replace( '\s+', '', inplace = True, regex = True )
+        df[ 'brokerage_name' ] = df[ 'brokerage' ].str[ 4: ]
+        df[ 'brokerage'] = df[ 'brokerage' ].str[ 0:4 ]
+        df[ 'stock' ] = self.stock
+        df[ 'date' ] = self.date
+
+        df.to_sql( name = 'BROKERAGE', con = engine, index = False, if_exists = 'append', index_label = None )
 
     def InsertDB( self ):
 
-        for filename in glob.glob( './/**//*.csv' ):
+        path = 'C:/workspace/data/全台卷商交易資料_20180327'
 
-            self.date = filename[ -10:-4 ]
+        for filename in glob.glob( path + '/*.csv' ):
 
-            self.stock = re.sub( '[0-9]+\\\\', '', filename.split( '_' )[ 1 ] )
-
+            self.date  = filename[ -10:-4 ]
+            self.stock = re.sub( "[0-9]{8}", '', filename.split( '_' )[ 1 ] )
+            self.stock = self.stock[1:]
             stock_name = filename.split( '_' )[ 2 ]
-            # ----------------------------------------
-
-            print( self.stock, stock_name, self.date )
 
             cmd = 'SELECT stock, date FROM BROKERAGE WHERE stock = \'{}\' and date = \'{}\''.format( self.stock, self.date )
-
             ft = self.cur_db.execute( cmd ).fetchone( )
 
             if ft is None:
-                self.InsertCSV2DB( filename )
-                self.con_db.commit( )
+                print( '{0:<5} {1:<7} {2:<7}'.format( self.date, self.stock, stock_name ) )
+                self.InsertDF2DB( filename )
             else:
-                print( '資料已存在資料庫 ', filename )
+                print( '資料已存在 {} '.format( filename )  )
 
 def main( ):
 
