@@ -284,6 +284,7 @@ def main( ):
         print( str(e) )
 
     stock_lst = list( TWSE.codes.keys( ) )
+    stock_lst = sorted( stock_lst q)
 
     thread_count = 2
     thread_list = [ ]
