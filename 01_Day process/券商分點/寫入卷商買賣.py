@@ -8,7 +8,8 @@ import time
 import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine
-
+import shutil
+import os
 
 def conn():
     return pyodbc.connect(
@@ -117,14 +118,16 @@ class dbHandle:
 
     def InsertDB( self ):
 
-        path = 'C:/workspace/data/全台卷商交易資料_20180327'
+        path = '全台卷商交易資料_'
+        dst_path  = 'C:/workspace/data/'
 
-        for filename in glob.glob( path + '/*.csv' ):
+        for filename in glob.glob( path + '*/*.csv' ):
 
             self.date  = filename[ -10:-4 ]
             self.stock = re.sub( "[0-9]{8}", '', filename.split( '_' )[ 1 ] )
             self.stock = self.stock[1:]
             stock_name = filename.split( '_' )[ 2 ]
+            # print( self.date, self.stock )
 
             cmd = 'SELECT stock, date FROM BROKERAGE WHERE stock = \'{}\' and date = \'{}\''.format( self.stock, self.date )
             ft = self.cur_db.execute( cmd ).fetchone( )
@@ -134,6 +137,11 @@ class dbHandle:
                 self.InsertDF2DB( filename )
             else:
                 print( '資料已存在 {} '.format( filename )  )
+
+            dst = "{}{}/".format( dst_path, filename.split( '\\' )[ 0 ] )
+            if not os.path.exists( dst ):
+                os.makedirs( dst )
+            shutil.move( filename, dst )
 
 def main( ):
 

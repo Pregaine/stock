@@ -31,11 +31,11 @@ class Technical_Indicator:
 
     """ 輸入線型周期, 查詢股價
         D 日線"""
-    def __init__( self, num = '2497', item = 'D' , **d ):
+    def __init__( self, num = '2497', item = 'D' , tree = '', **d ):
 
         path = { 'D' : num + '_日線.csv' }
 
-        self.path = path[ item ]
+        self.path = '{}/{}'.format( tree, path[ item ] )
         self.number = num
         self.df = pd.DataFrame( )
         self.type = item
@@ -141,11 +141,12 @@ def GetFile( *lst ):
 
     query = { 'D': 61 }
     lst = list( lst )
+    path = 'C:/workspace/data/技術指標/'
 
     while lst:
         start_tmr = datetime.now( )
         stock = lst.pop( 0 )
-        ti_D  = Technical_Indicator( stock, 'D', **query )
+        ti_D  = Technical_Indicator( stock, 'D', path, **query )
 
         try:
             _GetDay( ti_D )

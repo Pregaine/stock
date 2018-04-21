@@ -46,14 +46,14 @@ class Technical_Indicator:
         30 30分鐘 
         60 60分鐘
         """
-    def __init__( self, num = '2497', item = 'D' , **d ):
+    def __init__( self, num = '2497', item = 'D', tree = '', **d ):
 
-        path = { '60': num + '_60分線技術指標.csv',
-                 'D' : num + '_日線技術指標.csv',
-                 'W' : num + '_周線技術指標.csv',
-                 'M' : num + '_月線技術指標.csv' }
+        path = { '60': '{}_60分線技術指標.csv'.format( num ),
+                 'D': '{}_日線技術指標.csv'.format( num ),
+                 'W': '{}_周線技術指標.csv'.format( num ),
+                 'M': '{}_月線技術指標.csv'.format( num ) }
 
-        self.path = path[ item ]
+        self.path = '{}/{}'.format( tree, path[ item ] )
         self.number = num
         self.df = pd.DataFrame( )
         self.type = item
@@ -76,7 +76,6 @@ class Technical_Indicator:
 
         try:
             response = requests.request( "GET", url, headers = headers, params = querystring )
-            print( response.url )
         except Exception as e:
             print( response.url )
 
@@ -338,9 +337,7 @@ class Technical_Indicator:
         self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%y%m%d%H" )
         return False
 
-
     def SaveCSV( self ):
-
         # cols = [ '券商', '日期', '買進均價', '賣出均價', '買進張數', '賣出張數', '買賣超張數', '買賣超股數', '買進價格*張數', '賣出價格*張數',
         #          '買賣超金額', '買賣超佔股本比', '股本', '收盤', '成交量' ]
         # self.df_d.reindex( columns = cols )
@@ -354,9 +351,8 @@ class Technical_Indicator:
             self.df.to_csv( self.path, sep = ',', encoding = 'utf-8', date_format='%y%m%d%H' )
 
 def _GetMonth( obj ):
-    time.sleep( 1 )
-    obj.GetDF( )
 
+    obj.GetDF( )
     obj.CombineDF( )
 
     obj.GetMA( [ 3, 6, 12, 24, 36, 60, 120 ] )
@@ -372,9 +368,8 @@ def _GetMonth( obj ):
     obj.SaveCSV( )
 
 def _GetWeek( obj ):
-    time.sleep( 1 )
-    obj.GetDF( )
 
+    obj.GetDF( )
     obj.CombineDF( )
 
     obj.GetMA( [ 4, 12, 24, 48, 96, 144, 240, 480 ] )
@@ -390,7 +385,7 @@ def _GetWeek( obj ):
     obj.SaveCSV( )
 
 def _GetDay( obj, week, month ):
-    time.sleep( 1 )
+
     obj.GetDF( )
 
     obj.CombineDF( )
@@ -409,7 +404,7 @@ def _GetDay( obj, week, month ):
     obj.SaveCSV( )
 
 def _Get60Minute( obj ):
-    time.sleep( 1 )
+
     obj.GetDF( )
 
     if obj.ConverYearLst( ):
@@ -431,7 +426,6 @@ def _Get60Minute( obj ):
 
 def _DetStockIsNotExist( number ):
 
-    time.sleep( 1 )
     url = "http://5850web.moneydj.com/z/zc/zcw/zcw1.DJHTM"
 
     querystring = { "A": number }
@@ -461,17 +455,19 @@ def _DetStockIsNotExist( number ):
 
 def GetFile( *lst ):
 
-    query = { 'W': 480, 'D': 1200, 'M': 120, '60': 1200 }
+    # query = { 'W': 480, 'D': 1200, 'M': 120, '60': 1200 }
+    query = { 'W': 4, 'D': 7, 'M': 1, '60': 10 }
     lst = list( lst )
+    path = 'C:/workspace/data/技術指標/'
 
     while lst:
 
         start_tmr = datetime.now( )
         stock = lst.pop( 0 )
-        ti_W  = Technical_Indicator( stock, 'W', **query )
-        ti_M  = Technical_Indicator( stock, 'M', **query )
-        ti_60 = Technical_Indicator( stock, '60', **query )
-        ti_D  = Technical_Indicator( stock, 'D', **query )
+        ti_W  = Technical_Indicator( stock, 'W', path, **query )
+        ti_M  = Technical_Indicator( stock, 'M', path, **query )
+        ti_60 = Technical_Indicator( stock, '60', path, **query )
+        ti_D  = Technical_Indicator( stock, 'D', path, **query )
 
         try:
             if _Get60Minute( ti_60 ):
@@ -486,9 +482,9 @@ def GetFile( *lst ):
                 print( 'lst.append({})'.format( stock ) )
 
         consumption = datetime.now( ) - start_tmr
-        print( '股號{0:>7} 耗時{1:>4} Second'.format( stock, consumption.seconds ) )
+        print( '股號{0:>7} 耗時{1:>4} Second {2}'.format( stock, consumption.seconds, len( lst ) ) )
 
-def CompareFileModifyTime( path, hour = 24 ):
+def CompareFileModifyTime( path, hour = 6 ):
 
     one_days_ago = datetime.now( ) - timedelta( hours = hour )
     try:
@@ -512,9 +508,9 @@ def main( ):
     stock_lst = [ ]
 
     for stock in empty_lst:
-        if CompareFileModifyTime( '{0}_日線技術指標.csv'.format( stock ) ):
+        if CompareFileModifyTime( 'C:/workspace/data/技術指標/{0}_日線技術指標.csv'.format( stock ) ):
             continue
-        stock_lst.append( stock)
+        stock_lst.append( stock )
 
     print( '股票需更新{}支'.format( len( stock_lst ) ) )
 

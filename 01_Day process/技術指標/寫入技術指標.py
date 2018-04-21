@@ -497,19 +497,20 @@ def main( ):
             '周': [ db_W, '_周線技術指標.csv'],
             '月': [ db_M, '_月線技術指標.csv'] }
 
+    path = 'C:/workspace/data/技術指標\\'
+
     # 讀取資料夾
-    for file in glob.glob( '*_日線技術指標.csv' ):
-        # num = re.match( '\d*', file ).group( 0 )
-        # print( file.split( '_', 1 )[ 0 ], file )
+    for file in glob.glob( '{}*_日線技術指標.csv'.format( path ) ):
+
         num = file.split( '_' )[ 0 ]
+        num = num.replace( path, '' )
         data = file[ -10:-9 ]
 
         if data in stock_d.keys( ):
             Obj = stock_d[ data ][ 0 ]
-            path = num + stock_d[ data ][ 1 ]
             Obj.stock = num
-            print( '讀取{}'.format( path ) )
-            Obj.ReadCSV( path )
+            print( '讀取 {}'.format( file ) )
+            Obj.ReadCSV( file )
             Obj.CompareDB( data )
             Obj.WriteDB( data, First_Create )
         else:
