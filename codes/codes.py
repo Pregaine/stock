@@ -41,7 +41,8 @@ def read_csv( path, types ):
         for row in reader:
             row = ROW( *row )
             if row.type == '股票' or row.type == 'ETF':
-                codes[ row.code] = row
+                codes[ row.code ] = row
+
             if types == 'tpex':
                 tpex[row.code] = row
             else:

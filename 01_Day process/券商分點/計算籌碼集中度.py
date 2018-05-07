@@ -99,7 +99,7 @@ class dbHandle:
             return round( ft[ 0 ], 1 )
         except Exception:
             print( cmd )
-            print( '{0:<7}{1}~{2} 無成交量'.format( symbol, start ) )
+            print( '{0:<7}{1} 無成交量'.format( symbol, start ) )
             return None
 
     def GetVolumeBetweenDay( self, symbol, start, end ):
@@ -147,7 +147,7 @@ class dbHandle:
             ft = self.cur_db.execute( cmd ).fetchall( )
             for val in map( chip._make, ft ):
                 chip_15.append( val )
-                vol += val.vol
+                vol = vol + val.vol
             return chip_15, vol
         except Exception:
             print( 'Error: {}'.format( cmd ) )
@@ -182,31 +182,26 @@ class dbHandle:
 
     def GetChipSubBetweeDay( self, symbol, start, end ):
 
-        cmd = '''SELECT count( * ) FROM (
-                        SELECT
-                        brokerage_name 
+        cmd = '''SELECT
+                        sum( buy_volume ),
+                        sum( sell_volume )
                         FROM BROKERAGE 
-                        WHERE stock = \'{0}\' AND date BETWEEN \'{1}\' and \'{2}\' AND {3} > 0 
-                        GROUP BY brokerage_name ) cal_chip;'''
-
-        sql_cal_buychip_cmd = cmd.format( symbol, start, end, 'buy_volume' )
-        sql_cal_sellchip_cmd = cmd.format( symbol, start, end,  'sell_volume' )
-
-        buy_chip_num = self.cur_db.execute( sql_cal_buychip_cmd ).fetchone( )
-        sell_chip_num = self.cur_db.execute( sql_cal_sellchip_cmd ).fetchone( )
-
-        # print( sql_cal_buychip_cmd )
-        # print( buy_chip_num, sell_chip_num, buy_chip_num[ 0 ] - sell_chip_num[ 0 ] )
+                        WHERE stock =\'{}\' AND date BETWEEN \'{}\' and \'{}\'
+                        GROUP BY brokerage_name'''
+        sql_cal_chip_cmd = cmd.format( symbol, start, end )
+        data = self.cur_db.execute( sql_cal_chip_cmd ).fetchall( )
+        buy_chip = 0
+        sell_chip = 0
+        for val in data:
+            if val[ 0 ] > 0: buy_chip += 1
+            if val[ 1 ] > 0: sell_chip += 1
 
         try:
-            return round( buy_chip_num[ 0 ] - sell_chip_num[ 0 ], 0 )
+            return round( buy_chip - sell_chip, 0 )
         except Exception:
             print( cmd )
             print( '{0:<7}無買賣家數'.format( symbol ) )
             return None
-
-
-    #     buy_volume
 
     def GetConcentrateBetweenDay( self, symbol, end, start, val, cap ):
 
@@ -257,14 +252,14 @@ def chip_sort( df, stock, date, close_price, obj, day_range, sum_vol ):
     data = dict( )
     data[ '股號' ] = stock
     data[ '收盤' ] = close_price
-    data[ '日期範圍' ] = day_range
+    data[ '統計天數' ] = day_range
     data[ '日期' ] = date
 
     for i in range( 15 ):
-        print( obj[i].price, obj[i].vol, stock, date, day_range, obj[ i ].name )
+        # print( obj[i].price, obj[i].vol, stock, date, day_range, obj[ i ].name )
         data[ '券商{}'.format( i + 1 ) ] = obj[ i ].name
         data[ '券商買賣超{}'.format( i + 1 ) ] = round( obj[ i ].vol, 1 )
-        data[ '券商損益{}(萬)'.format( i + 1 ) ] = round( ( obj[ i ].price - ( close_price * obj[ i ].vol ) ) / 10000, 1 )
+        data[ '券商損益{}(萬)'.format( i + 1 ) ] = round( ( ( close_price * obj[ i ].vol ) - ( obj[ i ].price / 1000 ) ) / 10, 1 )
         try:
             data[ '券商均價{}'.format( i + 1 ) ] = round( obj[ i ].price / obj[ i ].vol / 1000, 1 )
         except Exception:
@@ -278,7 +273,7 @@ def chip_sort( df, stock, date, close_price, obj, day_range, sum_vol ):
 def unit( tar_file, stock_lst, capital_df ):
 
     # 回推天數，計算集中度
-    days = 30
+    days = 1
     tmp  = '籌碼集中暫存.csv'
 
     try:
@@ -288,7 +283,7 @@ def unit( tar_file, stock_lst, capital_df ):
 
     # db.ResetTable( 'CONCENTRATION' )
     # db.CreateTable(  )
-    chip_cols = [ '股號', '日期', '日期範圍', '收盤',
+    chip_cols = [ '股號', '日期', '統計天數', '收盤',
                   '券商1', '券商2', '券商3', '券商4', '券商5', '券商6',
                   '券商均價1', '券商均價2', '券商均價3', '券商均價4', '券商均價5', '券商均價6',
                   '券商損益1(萬)', '券商損益2(萬)', '券商損益3(萬)', '券商損益4(萬)', '券商損益5(萬)', '券商損益6(萬)',
@@ -450,7 +445,7 @@ if __name__ == '__main__':
     capital.df = capital.df[ condition ]
 
     stock_lst = sorted( capital.df[ 'stock' ].tolist( ) )
-    # stock_lst = []
+    # stock_lst = [ '2330' ]
 
     tmr = datetime.now( ).strftime( '%y%m%d_%H%M' )
     unit( '籌碼集中_{}.xlsx'.format( tmr ), stock_lst, capital.df )

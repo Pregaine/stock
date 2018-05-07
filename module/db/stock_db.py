@@ -20,7 +20,8 @@ class Handle:
                                       ';PWD=' + password )
 
         self.cur_db = self.con_db.cursor( )
-
+        cmd = """SET LANGUAGE us_english;"""
+        self.cur_db.execute( cmd )
         self.con_db.commit( )
 
 
@@ -152,11 +153,14 @@ class Handle:
         var_string = ', '.join( '?' * ( len( data )  ) )
         cmd = 'INSERT INTO {} VALUES ( {} )'.format( self.table, var_string )
 
-        with self.cur_db.execute( cmd, data ):
-            self.stock = data[ 0 ]
-            self.date = data[ 1 ]
-            self.cur_db.commit( )
-            print( '寫入 {} 資料表 {} {}'.format( self.table, self.stock, self.date ) )
+        try:
+            with self.cur_db.execute( cmd, data ):
+                self.stock = data[ 0 ]
+                self.date = data[ 1 ]
+                self.cur_db.commit( )
+                print( '寫入 {} 資料表 {} {}'.format( self.table, self.stock, self.date ) )
+        except Exception as e:
+            print( str( e ) )
 
 if __name__ == '__main__':
     pass

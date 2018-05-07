@@ -1,0 +1,1 @@
+create index BROKERAGE_I on BROKERAGE( stock, brokerage, date )

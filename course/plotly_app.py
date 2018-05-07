@@ -6,11 +6,21 @@ import plotly.graph_objs as go
 
 app = dash.Dash()
 
-df = pd.read_csv(
-    'https://gist.githubusercontent.com/chriddyp/' +
+# app.css.config.serve_locally = True
+# app.scripts.config.serve_locally = True
+app.config.supress_callback_exceptions=True
+
+web_path = ( 'https://gist.githubusercontent.com/chriddyp/' +
     '5d1ea79569ed194d432e56108a04d188/raw/' +
     'a9f9e8076b837d541398e999dcbac2b2826a81f8/'+
-    'gdp-life-exp-2007.csv')
+    'gdp-life-exp-2007.csv' )
+
+path = 'gdp-life-exp-2007.csv'
+
+print( web_path )
+
+df = pd.read_csv( path
+    )
 
 
 app.layout = html.Div([

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-import stock_inquire.stock_inquire as siq
-import stock_db.
+
 
 cmd = '''
     CREATE TABLE dbo.BrokerageAvgPrice

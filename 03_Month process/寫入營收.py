@@ -118,7 +118,6 @@ class DB_Revenue:
     def WriteDB( self, year, month ):
 
         self.df = self.df.astype( object ).where( pd.notnull( self.df ), None )
-
         lst = self.df.values.tolist( )
 
         if len( lst ) == 0:

@@ -131,8 +131,8 @@ def main( ):
         print( '{}'.format( e ) )
         db = DB_Investors( 'localhost', 'StockDB', 'sa', '292929' )
 
-    db.Reset_Table( )
-    db.CreatDB( )
+    # db.Reset_Table( )
+    # db.CreatDB( )
 
     # 讀取資料夾
     for file in os.listdir( '.\\' ):

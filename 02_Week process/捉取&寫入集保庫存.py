@@ -12,8 +12,7 @@ class TDCC_Handle:
 
     def __init__(self):
 
-        res = requests.get( 'http://www.tdcc.com.tw/smWeb/QryStock.jsp' )
-        self.soup = BS( res.text, "html5lib" )
+        # self.soup = BS( res.text, "html5lib" )
         self.datelst = [ ]
         self.d = { '1': '1_999',
                    '2': '1000_5000',
@@ -39,14 +38,12 @@ class TDCC_Handle:
 
         return self.datelst
 
-    def querry_stock( self, date, stock ):
+    def querry_stock( self, stock, date, res ):
 
         df = pd.DataFrame( )
-
-        website = 'SCA_DATE=' + date + '&SqlMethod=StockNo&StockNo=' + stock + '&StockName=&sub=%ACd%B8%DF'
-        res = requests.get( 'http://www.tdcc.com.tw/smWeb/QryStock.jsp?' + website )
         soup = BS( res.text, "html5lib" )
 
+        # print( res.text )
         try:
             tb = soup.select( '.mt' )[ 1 ]
         except:
@@ -57,7 +54,6 @@ class TDCC_Handle:
         df[ 'date'] = [ date ]
 
         for tr in tb.select( 'tr' ):
-
             if tr.select( 'td' )[ 0 ].text in self.d.keys():
 
                 val = tr.select( 'td' )[ 0 ].text
@@ -84,37 +80,85 @@ def main( ):
     TDCC_OBJ = TDCC_Handle( )
 
     stock_lst = list( TWSE.codes.keys() )
-    # stock_lst = [ '0050' ]
+    # stock_lst = [ '2316' ]
 
     # 查詢網路集保庫存日期
-    date_lst = TDCC_OBJ.qrerry_date( )
+    # date_lst = TDCC_OBJ.qrerry_date( )
+    date_lst = [ "20180427","20180420","20180413","20180403","20180331",
+                 "20180323","20180316","20180309","20180302","20180223",
+                 "20180214","20180209","20180202","20180126","20180119",
+                 "20180112","20180105","20171229","20171222","20171215",
+                 "20171208","20171201","20171124","20171117","20171110",
+                 "20171103","20171027","20171020","20171013","20171006",
+                 "20170930","20170922","20170915","20170908","20170901",
+                 "20170825","20170818","20170811","20170804","20170728",
+                 "20170721","20170714","20170707","20170630","20170623",
+                 "20170616","20170609","20170603","20170526","20170519",
+                 "20170512","20170505","20170428","20170421","20170414",
+                 "20170407"]
+
+    url = "http://www.tdcc.com.tw/smWeb/QryStockAjax.do"
+
+    headers = { 'origin' : "http://www.tdcc.com.tw", 'upgrade-insecure-requests': "1",
+        'content-type'   : "application/x-www-form-urlencoded",
+        'user-agent'     : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.139 Safari/537.36",
+        'accept'         : "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        'referer'        : "http://www.tdcc.com.tw/smWeb/QryStockAjax.do", 'accept-encoding': "gzip, deflate",
+        'accept-language': "zh-TW,zh-CN;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
+        'cache-control': "no-cache" }
 
     while len( stock_lst ) != 0:
 
         stock = stock_lst.pop( 0 )
+
         stock_db_date_lst = DB_OBJ.GetAllData( 'date', "stock = \'{}\' ".format( stock ) )
         stock_db_date_lst = list( set( date_lst ) - set( stock_db_date_lst ) )
 
         print( '{} 資料庫日期筆數 {}'.format( stock, len( stock_db_date_lst ) ) )
 
-        while len( stock_db_date_lst ) != 0:
+        while len(  stock_db_date_lst  ) != 0:
 
             date = stock_db_date_lst.pop( 0 )
-            #  捉取資料根據日期
-            df = TDCC_OBJ.querry_stock( date, stock )
 
-            if df is None:
+            payload = {
+                "REQ_OPR": "SELECT",
+                'SqlMethod': 'StockNo',
+                'StockName': '', 'StockNo': '{}'.format( stock ),
+                'clkStockName'   : '',
+                'clkStockNo': '{}'.format( stock ),
+                'radioStockNo': '{}'.format( stock ),
+                'scaDate' : '{}'.format( date ),
+                'scaDates': '{}'.format( date ), }
+
+            response = requests.request( "POST", url, data = payload, headers = headers )
+            print( 'Web Return Status', response.status_code, stock )
+
+            if response.status_code != 200:
+                stock_db_date_lst.append( date )
+                continue
+
+            # 捉取資料根據日期
+
+            soup = BS( response.text, "html5lib" )
+            try:
+                if soup.find( 'td', align = "center", colspan = "5" ).text == '無此資料':
+                    print( '{} {} 無此資料'.format( stock, date ) )
+                    continue
+            except:
+                pass
+
+            df = TDCC_OBJ.querry_stock( stock, date, response )
+            # print( df.head() )
+            if df.empty:
                 continue
 
             data = df.iloc[ 0 ].tolist( )
             data = data[ 0 : 2 ] + [ float( i ) for i in data[ 2: ] ]
+            DB_OBJ.WriteData( data )
 
-            try:
-                DB_OBJ.WriteData( data )
-            except:
-                print( stock, '查詢無', date, '資料'  )
-
-
+            # print( df )
+            # stock_db_date_lst.append( date )
+            # print( '{} {}寫入資料庫失敗'.format( stock, date ) )
 
 if __name__ == '__main__':
 
