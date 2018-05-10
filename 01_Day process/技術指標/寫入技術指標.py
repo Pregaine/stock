@@ -471,10 +471,10 @@ def main( ):
     path = 'C:/workspace/data/技術指標\\'
 
     # 讀取資料夾
-    # for file in glob.glob( '{}*_日線技術指標.csv'.format( path ) ):
+    for file in glob.glob( '{}*_日線技術指標.csv'.format( path ) ):
     # for file in glob.glob( '{}*_周線技術指標.csv'.format( path ) ):
     # for file in glob.glob( '{}*_月線技術指標.csv'.format( path ) ):
-    for file in glob.glob( '{}*_60分線技術指標.csv'.format( path ) ):
+    # for file in glob.glob( '{}*_60分線技術指標.csv'.format( path ) ):
     # for file in glob.glob( '{}*技術指標.csv'.format( path ) ):
 
         num = file.split( '_' )[ 0 ]
