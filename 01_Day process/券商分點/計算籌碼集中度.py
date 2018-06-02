@@ -273,7 +273,7 @@ def chip_sort( df, stock, date, close_price, obj, day_range, sum_vol ):
 def unit( tar_file, stock_lst, capital_df ):
 
     # 回推天數，計算集中度
-    days = 1
+    days = 5
     tmp  = '籌碼集中暫存.csv'
 
     try:
@@ -441,7 +441,7 @@ if __name__ == '__main__':
     # stock_lst = sorted( stock_lst )
 
     capital = goodinfo.capital( path = 'C:\workspace\stock\goodinfo\StockList_股本.csv' )
-    condition = capital.df[ '股本(億)' ] > 50
+    condition = capital.df[ '股本(億)' ] > 20
     capital.df = capital.df[ condition ]
 
     stock_lst = sorted( capital.df[ 'stock' ].tolist( ) )

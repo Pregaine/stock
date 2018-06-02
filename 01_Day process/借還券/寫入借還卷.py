@@ -60,7 +60,7 @@ class DB_Lend:
 
     def FindDuplicate( self, num, date ):
 
-        cmd = '''SELECT * FROM LEND WHERE stock = {} and date = \'{}\' '''.format( num, date )
+        cmd = '''SELECT * FROM LEND WHERE stock = \'{}\' and date = \'{}\' '''.format( num, date )
 
         # 尋找重覆資料
         ft = self.cur_db.execute( cmd  ).fetchone( )
@@ -141,9 +141,9 @@ def main( ):
 
     First_Create = False
 
-    First_Create = True
-    db.Reset_Table( )
-    db.CreatDB( )
+    # First_Create = True
+    # db.Reset_Table( )
+    # db.CreatDB( )
 
     # 讀取資料夾
     for file in os.listdir( '.\\' ):
