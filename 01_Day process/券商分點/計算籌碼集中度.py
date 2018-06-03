@@ -8,16 +8,31 @@ import sys
 import pandas as pd
 import numpy as np
 import csv
-import pyodbc
 import codes.codes as TWSE
 import decimal
 from collections import namedtuple
 import goodinfo.capital as goodinfo
+import pyodbc
+from sqlalchemy import create_engine
 
 # Todo
 # 建立 Table
 # date, 股號, top 15 買均價 top 15賣均價 top 15 買進金額 top 15賣出金額
 # 1日 5日 10日 20日 30日 45日 60日 120日
+
+#  todo driver 修正
+def conn():
+    return pyodbc.connect(
+        'DRIVER={ODBC Driver 13 for SQL Server};' + 'SERVER=localhost;' +
+        'PORT=1443;' + 'DATABASE=StockDB;' + 'UID=sa;' + 'PWD=admin;')
+
+
+# Create the sqlalchemy engine using the pyodbc connection
+engine = create_engine(
+    "mssql+pyodbc://?driver=ODBC+Driver+13?charset=utf8", creator=conn)
+con = engine.connect()
+con.execute("SET LANGUAGE us_english; set dateformat ymd;")
+con.close()
 
 class dbHandle:
 
@@ -127,83 +142,171 @@ class dbHandle:
             cpy_lst.pop( 0 )
         return ret_list
 
-    def GetTopBuyBetweenDay( self, symbol, start_day, end_day ):
+    def GetTopBuyBetweenDay( self, df ):
 
-        chip = namedtuple( 'buy', [ 'brokerage', 'name', 'price', 'vol' ] )
+        TopBuyBetweenDay_df = df.copy()
+
+        TopBuyBetweenDay_df[ 'buy_sell_vol' ] = TopBuyBetweenDay_df[ 'buy_volume' ] - TopBuyBetweenDay_df[ 'sell_volume' ]
+
+        TopBuyBetweenDay_df[ 'buy_sell_vol' ] = TopBuyBetweenDay_df[ 'buy_sell_vol' ] / 1000
+
+        TopBuyBetweenDay_df[ 'buy_sell_price' ] = (TopBuyBetweenDay_df[ 'buy_volume' ] * TopBuyBetweenDay_df[
+        'price' ]) - (TopBuyBetweenDay_df[ 'sell_volume' ] * TopBuyBetweenDay_df[ 'price' ])
+
+        TopBuyBetweenDay_df = TopBuyBetweenDay_df.groupby( [ 'brokerage_name', 'brokerage' ] ).sum( )
+
+        TopBuyBetweenDay_df.sort_values( 'buy_sell_vol', ascending = False, inplace = True )
+
+        TopBuyBetweenDay_df = TopBuyBetweenDay_df[ 0:15 ]
+
+        del TopBuyBetweenDay_df[ 'price' ]
+        del TopBuyBetweenDay_df[ 'buy_volume' ]
+        del TopBuyBetweenDay_df[ 'sell_volume' ]
+
+        TopBuyBetweenDay_df = TopBuyBetweenDay_df.round( { 'buy_sell_vol': 1, 'buy_sell_price': 1 } )
+
+        TopBuyBetweenDay_df.reset_index( inplace = True )
+
+        TopBuyBetweenDay_df.rename( index = str, columns = { "brokerage_name": "name", 'buy_sell_vol': 'vol', 'buy_sell_price': 'price' }, inplace = True )
+
         chip_15 = [ ]
-        vol = 0
-
-        cmd = '''SELECT TOP( 15 )
-                brokerage,
-                brokerage_name,
-                sum( buy_volume * price ) -  sum( sell_volume * price ) as buy_sell_price,
-                sum( buy_volume - sell_volume ) / 1000 as buy_sell_vol
-                FROM BROKERAGE
-                WHERE stock = \'{0}\' AND (  date between \'{1}\' and \'{2}\' )
-                GROUP BY stock, brokerage, brokerage_name
-                ORDER BY buy_sell_vol DESC'''.format( symbol, start_day, end_day )
 
         try:
-            ft = self.cur_db.execute( cmd ).fetchall( )
-            for val in map( chip._make, ft ):
-                chip_15.append( val )
-                vol = vol + val.vol
+            for row in TopBuyBetweenDay_df.itertuples( index = False, name = "buy" ):
+                chip_15.append( row )
+            vol = float( TopBuyBetweenDay_df[ 'vol' ].sum( ) )
             return chip_15, vol
         except Exception:
             print( 'Error: {}'.format( cmd ) )
-            return None, None  # except Exception:  #     print( cmd )  #     print( '{0:<7} 15大買超無資料 {1}~{2}'.format( symbol, start_day, end_day ) )  #     return None
+            return None, None
 
-    def GetTopSellBetweenDay( self, symbol, start_day, end_day ):
+        # chip = namedtuple( 'buy', [ 'brokerage', 'name', 'price', 'vol' ] )
+        # chip_15 = [ ]
+        # vol = 0
+        #
+        # cmd = '''SELECT TOP( 15 )
+        #         brokerage,
+        #         brokerage_name,
+        #         sum( buy_volume * price ) -  sum( sell_volume * price ) as buy_sell_price,
+        #         sum( buy_volume - sell_volume ) / 1000 as buy_sell_vol
+        #         FROM BROKERAGE
+        #         WHERE stock = \'{0}\' AND (  date between \'{1}\' and \'{2}\' )
+        #         GROUP BY stock, brokerage, brokerage_name
+        #         ORDER BY buy_sell_vol DESC'''.format( symbol, start_day, end_day )
+        #
+        # try:
+        #     ft = self.cur_db.execute( cmd ).fetchall( )
+        #     for val in map( chip._make, ft ):
+        #         chip_15.append( val )
+        #         vol = vol + val.vol
+        #     return chip_15, vol
+        # except Exception:
+        #     print( 'Error: {}'.format( cmd ) )
+        #     return None, None
 
-        chip = namedtuple( 'sell', [ 'brokerage', 'name', 'price', 'vol' ] )
+        # except Exception:  #     print( cmd )  #     print( '{0:<7} 15大買超無資料 {1}~{2}'.format( symbol, start_day, end_day ) )  #     return None
+
+    def GetTopSellBetweenDay( self, df ):
+
+        TopBuyBetweenDay_df = df.copy( )
+
+        TopBuyBetweenDay_df[ 'buy_sell_vol' ] = TopBuyBetweenDay_df[ 'sell_volume' ] - TopBuyBetweenDay_df['buy_volume' ]
+
+        TopBuyBetweenDay_df[ 'buy_sell_vol' ] = TopBuyBetweenDay_df[ 'buy_sell_vol' ] / 1000
+
+        TopBuyBetweenDay_df[ 'buy_sell_price' ] = (TopBuyBetweenDay_df[ 'sell_volume' ] * TopBuyBetweenDay_df[
+            'price' ]) - (TopBuyBetweenDay_df[ 'buy_volume' ] * TopBuyBetweenDay_df[ 'price' ])
+
+        TopBuyBetweenDay_df = TopBuyBetweenDay_df.groupby( [ 'brokerage_name', 'brokerage' ] ).sum( )
+
+        TopBuyBetweenDay_df.sort_values( 'buy_sell_vol', ascending = False, inplace = True )
+
+        TopBuyBetweenDay_df = TopBuyBetweenDay_df[ 0:15 ]
+
+        del TopBuyBetweenDay_df[ 'price' ]
+        del TopBuyBetweenDay_df[ 'buy_volume' ]
+        del TopBuyBetweenDay_df[ 'sell_volume' ]
+
+        TopBuyBetweenDay_df = TopBuyBetweenDay_df.round( { 'buy_sell_vol': 1, 'buy_sell_price': 1 } )
+
+        TopBuyBetweenDay_df.reset_index( inplace = True )
+
+        TopBuyBetweenDay_df.rename( index = str,
+            columns = { "brokerage_name": "name", 'buy_sell_vol': 'vol', 'buy_sell_price': 'price' }, inplace = True )
+
         chip_15 = [ ]
-        vol = 0
 
-        cmd = '''SELECT TOP( 15 )
-                brokerage,
-                brokerage_name,   	
-                sum( sell_volume * price ) - sum( buy_volume * price ) as buy_sell_price,
-                sum( sell_volume - buy_volume ) / 1000 as buy_sell_vol                 
-                FROM BROKERAGE	
-                WHERE stock = \'{0}\' and date between \'{1}\' and \'{2}\'
-                GROUP BY stock, brokerage, brokerage_name
-                ORDER BY buy_sell_vol DESC'''.format( symbol, start_day, end_day )
-
-        ft = self.cur_db.execute( cmd ).fetchall( )
         try:
-            ft = self.cur_db.execute( cmd ).fetchall( )
-            for val in map( chip._make, ft ):
-                chip_15.append( val )
-                vol += val.vol
+            for row in TopBuyBetweenDay_df.itertuples( index = False, name = "sell" ):
+                chip_15.append( row )
+            vol = float( TopBuyBetweenDay_df[ 'vol' ].sum( ) )
             return chip_15, vol
         except Exception:
             print( 'Error {}'.format( cmd ) )
             return None, None
 
-    def GetChipSubBetweeDay( self, symbol, start, end ):
+        # chip = namedtuple( 'sell', [ 'brokerage', 'name', 'price', 'vol' ] )
+        # chip_15 = [ ]
+        # vol = 0
 
-        cmd = '''SELECT
-                        sum( buy_volume ),
-                        sum( sell_volume )
-                        FROM BROKERAGE 
-                        WHERE stock =\'{}\' AND date BETWEEN \'{}\' and \'{}\'
-                        GROUP BY brokerage_name'''
-        sql_cal_chip_cmd = cmd.format( symbol, start, end )
-        data = self.cur_db.execute( sql_cal_chip_cmd ).fetchall( )
+        # cmd = '''SELECT TOP( 15 )
+        #         brokerage,
+        #         brokerage_name,
+        #         sum( sell_volume * price ) - sum( buy_volume * price ) as buy_sell_price,
+        #         sum( sell_volume - buy_volume ) / 1000 as buy_sell_vol
+        #         FROM BROKERAGE
+        #         WHERE stock = \'{0}\' and date between \'{1}\' and \'{2}\'
+        #         GROUP BY stock, brokerage, brokerage_name
+        #         ORDER BY buy_sell_vol DESC'''.format( symbol, start_day, end_day )
+
+        # # try:
+        # ft = self.cur_db.execute( cmd ).fetchall( )
+
+        # for val in map( chip._make, ft ):
+        #     val.price = float( val.price )
+        #     print( val, val.price )
+        #     chip_15.append( val )
+        #     vol += val.vol
+
+        # vol = float( vol )
+
+        # return chip_15, vol
+        # except Exception:
+        #     print( 'Error {}'.format( cmd ) )
+        #     return None, None
+
+    def GetChipSubBetweeDay( self, df ):
+
         buy_chip = 0
         sell_chip = 0
-        for val in data:
-            if val[ 0 ] > 0: buy_chip += 1
-            if val[ 1 ] > 0: sell_chip += 1
+
+        # cmd = '''SELECT
+        #                 sum( buy_volume ),
+        #                 sum( sell_volume )
+        #                 FROM BROKERAGE
+        #                 WHERE stock =\'{}\' AND date BETWEEN \'{}\' and \'{}\'
+        #                 GROUP BY brokerage_name'''
+        # sql_cal_chip_cmd = cmd.format( symbol, start, end )
+        # data = self.cur_db.execute( sql_cal_chip_cmd ).fetchall( )
+
+        # for val in data:
+        #     if val[ 0 ] > 0: buy_chip += 1
+        #     if val[ 1 ] > 0: sell_chip += 1
+        df = df.copy()
+
+        df = df.groupby( [ 'brokerage' ] ).sum( )
+        df.reset_index( inplace = True )
+
+        buy_chip = ( df[ 'buy_volume' ] > 0 ).sum( )
+        sell_chip = ( df[ 'sell_volume' ] > 0 ).sum( )
 
         try:
-            return round( buy_chip - sell_chip, 0 )
+            return ( buy_chip - sell_chip )
         except Exception:
-            print( cmd )
-            print( '{0:<7}無買賣家數'.format( symbol ) )
+            print( '無買賣家數' )
             return None
 
-    def GetConcentrateBetweenDay( self, symbol, end, start, val, cap ):
+    def GetConcentrateBetweenDay( self, symbol, end, start, val, cap, df, vol_df ):
 
         chip = namedtuple( 'Info', [ 'concentrate', 'sum_vol', 'sub_vol', 'top15_buy', 'top15_sell'
                                     'weight', 'turnover', 'sub_security' ] )
@@ -221,10 +324,15 @@ class dbHandle:
 
         end = end[ val ][ 0 ]
         start = start[ val ][ 1 ]
-        buy_chip, buy_vol = self.GetTopBuyBetweenDay( symbol, start, end )
-        sell_chip, sell_vol = self.GetTopSellBetweenDay( symbol, start, end )
-        sum_vol = self.GetVolumeBetweenDay( symbol, start, end )
-        sub_security = self.GetChipSubBetweeDay( symbol, start, end )
+        mask = (df[ 'date' ] >= start) & (df[ 'date' ] <= end)
+        df = df.loc[ mask ]
+
+        vol_df = vol_df.loc[ (vol_df[ 'date' ] >= start) & (vol_df[ 'date' ] <= end) ]
+        sum_vol = vol_df.volume.sum()
+
+        buy_chip, buy_vol   = self.GetTopBuyBetweenDay( df )
+        sell_chip, sell_vol = self.GetTopSellBetweenDay( df )
+        sub_security        = self.GetChipSubBetweeDay( df )
 
         if buy_vol is None or sell_vol is None or sum_vol is None: return chip
         if sum_vol == 0 or ( buy_vol - sell_vol ) == 0: return chip
@@ -255,17 +363,26 @@ def chip_sort( df, stock, date, close_price, obj, day_range, sum_vol ):
     data[ '統計天數' ] = day_range
     data[ '日期' ] = date
 
+    # print( obj )
+
     for i in range( 15 ):
         # print( obj[i].price, obj[i].vol, stock, date, day_range, obj[ i ].name )
-        data[ '券商{}'.format( i + 1 ) ] = obj[ i ].name
-        data[ '券商買賣超{}'.format( i + 1 ) ] = round( obj[ i ].vol, 1 )
-        data[ '券商損益{}(萬)'.format( i + 1 ) ] = round( ( ( close_price * obj[ i ].vol ) - ( obj[ i ].price / 1000 ) ) / 10, 1 )
+        try:
+            data[ '券商{}'.format( i + 1 ) ] = obj[ i ].name
+            data[ '券商買賣超{}'.format( i + 1 ) ] = round( obj[ i ].vol, 1 )
+            close_price = float( close_price )
+            data[ '券商損益{}(萬)'.format( i + 1 ) ] = round( ( ( close_price * obj[ i ].vol ) - ( obj[ i ].price / 1000 ) ) / 10, 1 )
+            data[ '重押比{}'.format( i + 1 ) ] = round( float( obj[ i ].vol ) / sum_vol * 100, 1 )
+        except Exception:
+            data[ '券商{}'.format( i + 1 ) ] = None
+            data[ '券商買賣超{}'.format( i + 1 ) ] = None
+            close_price = None
+            data[ '券商損益{}(萬)'.format( i + 1 ) ] = None
+            data[ '重押比{}'.format( i + 1 ) ] = None
         try:
             data[ '券商均價{}'.format( i + 1 ) ] = round( obj[ i ].price / obj[ i ].vol / 1000, 1 )
         except Exception:
             data[ '券商均價{}'.format( i + 1 ) ] = None
-
-        data[ '重押比{}'.format( i + 1 ) ] = round( float( obj[ i ].vol ) / sum_vol * 100, 1 )
 
     df = df.append( data, ignore_index = True )
     return df
@@ -273,7 +390,7 @@ def chip_sort( df, stock, date, close_price, obj, day_range, sum_vol ):
 def unit( tar_file, stock_lst, capital_df ):
 
     # 回推天數，計算集中度
-    days = 5
+    days = 1
     tmp  = '籌碼集中暫存.csv'
 
     try:
@@ -339,6 +456,33 @@ def unit( tar_file, stock_lst, capital_df ):
 
         capital = capital_df.loc[ capital_df[ 'stock' ] == stock, '股本(億)' ].values[ 0 ] * 100000000 / 10 / 1000
 
+        try:
+            cmd = '''SELECT
+                    brokerage,
+                    brokerage_name,
+                    buy_volume,
+                    sell_volume,
+                    price,
+                    date
+                    FROM BROKERAGE
+                    WHERE stock = \'{0}\' AND ( date between \'{1}\' and \'{2}\' )'''.format( stock, db.date_lst[ -1 ], db.date_lst[ 0 ] )
+        except Exception:
+            continue
+
+        in_df = pd.read_sql_query( cmd, engine )
+        in_df[ 'date' ] = pd.to_datetime( in_df[ 'date' ] )
+
+        price_cmd = '''SELECT close_price, date FROM TECH_D WHERE stock = \'{0}\' '''.format( stock )
+        price_df = pd.read_sql_query( price_cmd, engine )
+        price_df[ 'date' ] = pd.to_datetime( price_df[ 'date' ] )
+
+        if price_df.empty is True:
+            continue
+
+        vol_cmd = '''SELECT volume, date FROM TECH_D WHERE stock = \'{0}\' '''.format( stock )
+        vol_df = pd.read_sql_query( vol_cmd, engine )
+        vol_df[ 'date' ] = pd.to_datetime( vol_df[ 'date' ] )
+
         for val in range( days ):
 
             if len( day01_lst ) <= val:
@@ -348,19 +492,15 @@ def unit( tar_file, stock_lst, capital_df ):
             if df[ codi ].empty is False:
                 continue
 
-            # 買賣超 = 所有券商總買進張數 - 所有券商總賣出張數
-            # 家數差=所有買超券商家數-所有賣超券商家數
-
-            chip_01 = db.GetConcentrateBetweenDay( stock, day01_lst, day01_lst, val, capital )
-            chip_03 = db.GetConcentrateBetweenDay( stock, day03_lst, day03_lst, val, capital )
-            chip_05 = db.GetConcentrateBetweenDay( stock, day05_lst, day05_lst, val, capital )
-            chip_10 = db.GetConcentrateBetweenDay( stock, day10_lst, day10_lst, val, capital )
-            chip_20 = db.GetConcentrateBetweenDay( stock, day20_lst, day20_lst, val, capital )
-            chip_60 = db.GetConcentrateBetweenDay( stock, day60_lst, day60_lst, val, capital )
+            chip_01 = db.GetConcentrateBetweenDay( stock, day01_lst, day01_lst, val, capital, in_df, vol_df )
+            chip_03 = db.GetConcentrateBetweenDay( stock, day03_lst, day03_lst, val, capital, in_df, vol_df )
+            chip_05 = db.GetConcentrateBetweenDay( stock, day05_lst, day05_lst, val, capital, in_df, vol_df )
+            chip_10 = db.GetConcentrateBetweenDay( stock, day10_lst, day10_lst, val, capital, in_df, vol_df )
+            chip_20 = db.GetConcentrateBetweenDay( stock, day20_lst, day20_lst, val, capital, in_df, vol_df )
+            chip_60 = db.GetConcentrateBetweenDay( stock, day60_lst, day60_lst, val, capital, in_df, vol_df )
 
             date  = day01_lst[ val ][ 0 ]
-            price = db.GetPriceDay( stock, date )
-            # print( stock, date, chip_01.sub_vol, chip_01.sub_security )
+            price = price_df.loc[ price_df[ 'date' ] == date, 'close_price' ].values[ 0 ]
 
             df = df.append( { '股號': stock,
                               '日期': date,
@@ -432,7 +572,6 @@ def unit( tar_file, stock_lst, capital_df ):
     df.to_excel( df_writer, sheet_name = '籌碼分析' )
     ChipBuy_df.to_excel( df_writer, sheet_name = '卷商買超' )
     ChipSell_df.to_excel( df_writer, sheet_name = '卷商賣超' )
-
 
 if __name__ == '__main__':
 
