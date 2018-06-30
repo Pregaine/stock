@@ -7,3 +7,7 @@
 *.ini
 *.xlsx
 *.pdf
+*.7z
+/gui/.ipynb_checkpoints/*.*
+*.xls
+*.jpg

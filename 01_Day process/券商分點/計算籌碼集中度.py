@@ -472,16 +472,14 @@ def unit( tar_file, stock_lst, capital_df ):
         in_df = pd.read_sql_query( cmd, engine )
         in_df[ 'date' ] = pd.to_datetime( in_df[ 'date' ] )
 
-        price_cmd = '''SELECT close_price, date FROM TECH_D WHERE stock = \'{0}\' '''.format( stock )
+        price_cmd = '''SELECT volume, close_price, date FROM TECH_D WHERE stock = \'{0}\' AND ( date between \'{1}\' and \'{2}\' )'''.format( stock, db.date_lst[ -1 ], db.date_lst[ 0 ] )
         price_df = pd.read_sql_query( price_cmd, engine )
         price_df[ 'date' ] = pd.to_datetime( price_df[ 'date' ] )
 
+        vol_df = price_df[ [ 'date', 'volume' ] ].copy()
+
         if price_df.empty is True:
             continue
-
-        vol_cmd = '''SELECT volume, date FROM TECH_D WHERE stock = \'{0}\' '''.format( stock )
-        vol_df = pd.read_sql_query( vol_cmd, engine )
-        vol_df[ 'date' ] = pd.to_datetime( vol_df[ 'date' ] )
 
         for val in range( days ):
 
@@ -500,6 +498,7 @@ def unit( tar_file, stock_lst, capital_df ):
             chip_60 = db.GetConcentrateBetweenDay( stock, day60_lst, day60_lst, val, capital, in_df, vol_df )
 
             date  = day01_lst[ val ][ 0 ]
+
             price = price_df.loc[ price_df[ 'date' ] == date, 'close_price' ].values[ 0 ]
 
             df = df.append( { '股號': stock,
@@ -556,10 +555,8 @@ def unit( tar_file, stock_lst, capital_df ):
             ChipSell_df = chip_sort( ChipSell_df, stock, date, price, chip_10.top15_sell, 10, chip_10.sum_vol )
             ChipSell_df = chip_sort( ChipSell_df, stock, date, price, chip_20.top15_sell, 20, chip_20.sum_vol )
             ChipSell_df = chip_sort( ChipSell_df, stock, date, price, chip_60.top15_sell, 60, chip_60.sum_vol )
-
+            
     df.sort_values( by = [ '日期', '股號' ], ascending = [ False, True ], inplace = True )
-
-    df_writer = pd.ExcelWriter( tar_file )
 
     df.reset_index( drop = True, inplace = True )
     ChipBuy_df.reset_index( drop = True, inplace =  True )
@@ -569,6 +566,11 @@ def unit( tar_file, stock_lst, capital_df ):
     ChipBuy_df.to_csv( 'ChipBuy.csv', encoding = 'utf-8' )
     ChipSell_df.to_csv( 'ChipSell.csv', encoding = 'utf-8' )
 
+    df = df[ df[ '日期' ] >  db.date_lst[ 5 ] ]
+    ChipBuy_df = ChipBuy_df[ ChipBuy_df[ '日期'] > db.date_lst[ 5 ] ]
+    ChipSell_df = ChipSell_df[ ChipSell_df[ '日期'] > db.date_lst[ 5 ] ]
+
+    df_writer = pd.ExcelWriter( tar_file )
     df.to_excel( df_writer, sheet_name = '籌碼分析' )
     ChipBuy_df.to_excel( df_writer, sheet_name = '卷商買超' )
     ChipSell_df.to_excel( df_writer, sheet_name = '卷商賣超' )
@@ -580,7 +582,7 @@ if __name__ == '__main__':
     # stock_lst = sorted( stock_lst )
 
     capital = goodinfo.capital( path = 'C:\workspace\stock\goodinfo\StockList_股本.csv' )
-    condition = capital.df[ '股本(億)' ] > 20
+    condition = capital.df[ '股本(億)' ] > 6
     capital.df = capital.df[ condition ]
 
     stock_lst = sorted( capital.df[ 'stock' ].tolist( ) )

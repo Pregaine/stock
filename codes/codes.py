@@ -40,7 +40,7 @@ def read_csv( path, types ):
         csvfile.readline( )
         for row in reader:
             row = ROW( *row )
-            if row.type == '股票' or row.type == 'ETF':
+            if row.type == '股票': # or row.type == 'ETF':
                 codes[ row.code ] = row
 
             if types == 'tpex':

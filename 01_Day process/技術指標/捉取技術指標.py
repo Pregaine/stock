@@ -119,7 +119,7 @@ class Technical_Indicator:
 
         except Exception as e:
             pass
-            # print( str( e ) )
+            print( str( e ) )
             # logging.exception( e )
             # print( self.path, '首次存檔' )
 
@@ -279,19 +279,25 @@ class Technical_Indicator:
 
         tmp_w_lst = [ ]
         tmp_m_lst = [ ]
-
+        
+        
         for date in self.df[ '日期' ]:
 
             now_price = self.df[ self.df[ '日期' ] == date ][ '收盤' ].values[ 0 ]
+            
+            # print( 1, now_price, self.df[ self.df[ '日期' ] == date ][ '日期' ] )
 
             try:
-                week_close_price = df_w[ df_w[ '日期' ] <= date ][ '收盤' ].values[ -2 ]
+                week_close_price = df_w.loc[ df_w[ '日期' ] <= date, '收盤' ].values[ 1 ]
                 tmp_w_lst.append( (now_price - week_close_price) / week_close_price * 100 )
+                
+                # print( '2------>', week_close_price, df_w[ df_w[ '日期' ] <= date ][ '日期' ].values[ -2 ] )
+                
             except IndexError:
                 tmp_w_lst.append( None )
 
             try:
-                month_close_price = df_m[ df_m[ '日期' ] <= date ][ '收盤' ].values[ -2 ]
+                month_close_price = df_m.loc[ df_m[ '日期' ] <= date, '收盤' ].values[ 1 ]
                 tmp_m_lst.append( ( now_price - month_close_price ) / month_close_price * 100 )
             except IndexError:
                 tmp_m_lst.append( None )
@@ -303,22 +309,23 @@ class Technical_Indicator:
     # TODO 對方網站改變60分線取消月字串，導致錯誤 18/03/03
     def ConverYearLst( self ):
 
-        now = datetime.now( )
-        now_month = now.month
-        now_year  = now.year
-
-        # TODO 有沒有更好的方法
-        index = self.df.index[ -1 ]
-
         try:
+            index = self.df.index[ -1 ]
             pre_day = int( self.df.loc[ index, '日期' ][ 0:2 ] )
         except ValueError as e:
             print( "股號", self.number, self.type, '資料不足' )
             return True
 
+        """
+        now = datetime.now( )
+        now_month = now.month
+        now_year  = now.year
+        # TODO 有沒有更好的方法
+        index = self.df.index[ -1 ]
+
         for val in range( self.df.index[ -1 ], -1, -1 ):
 
-            now_day  = int( self.df.loc[ val, '日期' ][ 0:2 ] )
+            now_day  = int( self.df.loc[ val, '日期' ][ 6:8 ] )
 
             # print( 'now_year', now_year, 'now_month', now_month, 'now_day', now_day )
 
@@ -332,9 +339,12 @@ class Technical_Indicator:
             pre_day = now_day
 
             # print( "self.df.loc[ val, '日期' ]", self.df.loc[ val, '日期' ] )
-            self.df.loc[ val, '日期' ] = str( now_year - 2000 ) + '{:0>2}'.format( now_month ) + self.df.loc[ val, '日期' ][ 0:4 ]
+            self.df.loc[ val, '日期' ] = str( now_year - 2000 ) + '{:0>2}'.format( now_month ) + self.df.loc[ val, '日期' ][ 6:10 ]
+        """
 
-        self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%y%m%d%H" )
+        self.df[ '日期' ] = self.df[ '日期' ].str[ 0:-2 ]
+        self.df[ '日期' ] = pd.to_datetime( self.df[ '日期' ], format = "%Y%m%d%H" )
+
         return False
 
     def SaveCSV( self ):
@@ -350,11 +360,24 @@ class Technical_Indicator:
         else:
             self.df.to_csv( self.path, sep = ',', encoding = 'utf-8', date_format='%y%m%d%H' )
 
-def _GetMonth( obj ):
+def _GetMonth( obj, update_m ):
 
-    obj.GetDF( )
+    # try:
+    #     compare = pd.read_csv( obj.path, sep = ',', encoding = 'utf8', false_values = 'NA', dtype = { '日期': str } )
+    #     compare = compare[ [ '日期', '開盤', '最高', '最低', '收盤', '成交量' ] ]
+    #     compare[ '日期' ] = pd.to_datetime( compare[ '日期' ], format = "%y%m%d" )
+    #     now = datetime.now( )
+    #     delta = now - compare.loc[ 0, '日期' ]
+    #
+    #     if delta.days > 25:
+    #         print( '{:<7} 月線 {:<2} 天前更新'.format( obj.number, delta.days ) )
+    #         obj.GetDF( )
+    # except FileNotFoundError:
+
+    if update_m is True:
+        obj.GetDF( )
+
     obj.CombineDF( )
-
     obj.GetMA( [ 3, 6, 12, 24, 36, 60, 120 ] )
     obj.GetRSI( [ 2, 5, 10 ] )
     obj.GetKD( period = 9, k = 3, d = 3 )
@@ -367,9 +390,11 @@ def _GetMonth( obj ):
     obj.GetTi( )
     obj.SaveCSV( )
 
-def _GetWeek( obj ):
+def _GetWeek( obj, update_w ):
 
-    obj.GetDF( )
+    if update_w is True:
+        obj.GetDF( )
+
     obj.CombineDF( )
 
     obj.GetMA( [ 4, 12, 24, 48, 96, 144, 240, 480 ] )
@@ -387,8 +412,8 @@ def _GetWeek( obj ):
 def _GetDay( obj, week, month ):
 
     obj.GetDF( )
-
     obj.CombineDF( )
+
     obj.PCT_Change( week.df, month.df )
 
     obj.GetMA( [ 3, 5, 8, 10, 20, 60, 120, 240, 480, 600, 840, 1200 ] )
@@ -403,12 +428,12 @@ def _GetDay( obj, week, month ):
     obj.GetTi( )
     obj.SaveCSV( )
 
-def _Get60Minute( obj ):
+def _Get60Minute( obj, update_h ):
 
-    obj.GetDF( )
-
-    if obj.ConverYearLst( ):
-        return True
+    if update_h is True:
+        obj.GetDF( )
+        if obj.ConverYearLst( ):
+            return True
 
     obj.CombineDF( )
 
@@ -453,10 +478,10 @@ def _DetStockIsNotExist( number ):
     else:
         return  False
 
-def GetFile( *lst ):
+def GetFile( lst, update_m, update_w, update_h ):
 
     # query = { 'W': 480, 'D': 1200, 'M': 120, '60': 1200 }
-    query = { 'W': 4, 'D': 7, 'M': 1, '60': 10 }
+    query = { 'W': 2, 'D': 5, 'M': 1, '60': 10 }
     lst = list( lst )
     path = 'C:/workspace/data/技術指標/'
 
@@ -470,14 +495,15 @@ def GetFile( *lst ):
         ti_D  = Technical_Indicator( stock, 'D', path, **query )
 
         try:
-            if _Get60Minute( ti_60 ):
+            if _Get60Minute( ti_60, update_h ):
                 continue
-            _GetWeek( ti_W )
-            _GetMonth( ti_M )
+            _GetWeek( ti_W, update_w )
+            _GetMonth( ti_M, update_m )
             _GetDay( ti_D, ti_W, ti_M )
+
         except Exception as e:
             print( '{}'.format( e ) )
-            if '{}'.format( e ) != 'day is out of range for month':
+            if '{}'.format( e ) != 'day is out of range for month' and stock != '6131':
                 lst.append( stock )
                 print( 'lst.append({})'.format( stock ) )
 
@@ -512,15 +538,19 @@ def main( ):
             continue
         stock_lst.append( stock )
 
+    # stock_lst = [ '4989', '2330', '1711' ]
     print( '股票需更新{}支'.format( len( stock_lst ) ) )
 
     thread_count = 2
+    update_m = False
+    update_w = False
+    update_h = False
     thread_list = [ ]
 
     for i in range( thread_count ):
         start = math.floor( i * len( stock_lst ) / thread_count )
         end   = math.floor( ( i + 1 ) * len( stock_lst ) / thread_count )
-        thread_list.append( threading.Thread( target = GetFile, args = stock_lst[ start:end ]  ) )
+        thread_list.append( threading.Thread( target = GetFile, args = ( stock_lst[ start:end ], update_m, update_w, update_h  ) ) )
 
     for thread in thread_list:
         thread.start( )

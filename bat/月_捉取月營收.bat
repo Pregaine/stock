@@ -5,7 +5,7 @@ set PYTHONPATH=C:/workspace/stock/
 
 
 REM 設定 work dir
-cd /d C:\workspace\stock\01_Day process\技術指標\
+cd /d C:\workspace\stock\03_Month process\
 
 ECHO 執行捉取月營收
 

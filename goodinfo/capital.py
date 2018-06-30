@@ -10,9 +10,6 @@ class capital:
         df[ 'stock' ]= df[ '代號' ].astype( str )
         del df[ '代號' ]
 
-        df[ '股本(億)' ] = df[ '股本(億)\r' ]
-        del df[ '股本(億)\r' ]
-
         df.sort_values( by=['股本(億)'], ascending=False, inplace = True )
         df.reset_index( inplace = True )
 
